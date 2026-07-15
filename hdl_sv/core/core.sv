@@ -220,12 +220,12 @@ module corex #(
     // 6. Connect Outputs to Monitor Interface
     // ==========================================================================
     // 当指令有效、未被 stall 且寄存器写使能有效时，输出写回监视
+    logic is_running;
     assign monitor_valid = ex_reg_write && !stall && !rst;
     assign monitor_pc    = ex_pc;
     assign monitor_waddr = ex_rd;
     assign monitor_wdata = ex_alu_result;
     
-    logic is_running;
     assign is_running = !rst && (u_ifu.fetch || stall);
 
     always_ff @(posedge clk) begin
