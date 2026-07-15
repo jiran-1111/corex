@@ -1,0 +1,14 @@
+# IDE & editor
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+
+# Cocotb build output
+sim_build/
+verilator/

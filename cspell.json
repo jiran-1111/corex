@@ -1,0 +1,29 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "BRAM",
+        "Chun",
+        "cocotb",
+        "comopy",
+        "corex",
+        "deassert",
+        "endinterface",
+        "endmodule",
+        "ibus",
+        "imem",
+        "insts",
+        "localparam",
+        "modport",
+        "MPRC",
+        "posedge",
+        "pytest",
+        "rdata",
+        "verilator",
+        "Vivado"
+    ],
+    "ignorePaths": [
+        "**/.venv/**",
+        "**/obj_dir/**"
+    ]
+}
