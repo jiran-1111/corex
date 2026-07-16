@@ -4,7 +4,6 @@
 # All rights reserved.
 #
 # Author: Ran Ji
-# 
 """
 立即数范围： I/S： 12位 U：20 J：21
 R-type（寄存器-寄存器运算）：

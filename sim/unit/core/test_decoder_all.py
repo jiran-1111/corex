@@ -4,7 +4,6 @@
 # All rights reserved.
 #
 # Author: Ran Ji
-# 
 
 import cocotb
 from cocotb.clock import Clock

@@ -1,4 +1,12 @@
-﻿/* COREX: Co-modeling RISC-V Example Core
+/*
+ * COREX: Co-modeling RISC-V Example Core
+ * 
+ * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
+ * All rights reserved.
+ * 
+ * Author: Ran Ji
+ */
+/* COREX: Co-modeling RISC-V Example Core
  *
  * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
  * All rights reserved.
