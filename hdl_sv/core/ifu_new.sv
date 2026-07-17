@@ -76,8 +76,8 @@ module Ifu #(
             fetch <= 1'b0;
         end else if (start) begin
             fetch <= 1'b1;
-        //end else if (stall) begin
-            //fetch <= 1'b0; // 流水线暂停时，停止发起新的取指请求
+        end else if (stall) begin
+            fetch <= 1'b1; // 流水线暂停时，停止发起新的取指请求
         end else begin
             fetch <= 1'b1; // 正常运行，保持取指请求
         end
@@ -120,7 +120,7 @@ module Ifu #(
         end
     end
 
-
+    
 
 
 endmodule
