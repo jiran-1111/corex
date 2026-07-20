@@ -17,14 +17,11 @@ module Decoder #(
     // PC用于跳转
     input logic [ADDR_WIDTH-1:0] PC,
 
-    input  logic [1:0]             extend_sel,  // 0:I-type, 1:U-type
+    input  logic [1:0]             extend_sel,  
     input  logic                   reg_write,   // WB stage write enable
     input  logic [4:0]             write_reg,   // WB stage rd address
     input  logic [DATA_WIDTH-1:0]  write_data,  // WB stage write data
 
-    input logic rs1_data_bypass,// 1：有冲突 上一条指令还在mem/wb  0: 没有冲突
-    input logic rs2_data_bypass,//冲突检测单元（Hazard/Forwarding Unit）控制的选择开关（2位宽的 MUX 选择信号）。
-    input logic [DATA_WIDTH-1:0] ALU_result_writeback,
     output logic [6:0]             opcode,
     output logic [6:0]             funct7,
     output logic [2:0]             funct3,
@@ -36,7 +33,10 @@ module Decoder #(
     output logic [DATA_WIDTH-1:0]  rs2_data,
 
     output logic [ADDR_WIDTH-1:0] branch_target, //跳转目标地址
-    output logic [ADDR_WIDTH-1:0] JAL_target
+    output logic [ADDR_WIDTH-1:0] JAL_target,
+    //output logic [ADDR_WIDTH-1:0] JALR_target,
+    output logic [DATA_WIDTH/8-1:0] mem_wbe
+
 
 );
 
@@ -54,7 +54,8 @@ module Decoder #(
     logic [31:0] sb_imm_32;
     logic [19:0] uj_imm;
     logic [31:0] uj_imm_32;
-
+    logic rs1_data_bypass;
+    logic rs2_data_bypass;
     logic [DATA_WIDTH-1:0] rs1_data_decode;
     logic [DATA_WIDTH-1:0] rs2_data_decode;
 
@@ -89,12 +90,28 @@ module Decoder #(
     assign branch_target = PC+sb_imm_32;
     //assign uj_imm_32 = { {12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0 };
 
-    assign uj_imm_32 = {{11{uj_imm[19]}},uj_imm[19:0],1'b0};
-    assign JAL_target = uj_imm_32 + PC;
+    //assign uj_imm_32 = {{11{uj_imm[19]}},uj_imm[19:0],1'b0};
+    // 推荐的、不易出错的一步到位 J-Type 符号扩展写法：
+    assign uj_imm_32 = {{12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0};
 
-    assign rs1_data = (rs1_data_bypass == 0) ? rs1_data_decode: ALU_result_writeback;
-    assign rs2_data = (rs2_data_bypass == 0) ? rs2_data_decode: ALU_result_writeback;                
+    assign JAL_target = uj_imm_32 + PC;
+    //assign JALR_target = (rs1_data + i_imm_32) & 32'hffff_fffe;
+    assign rs1_data_bypass = (rs1 == write_reg) && reg_write && (rs1 != 5'd0);
+    assign rs2_data_bypass = (rs2 == write_reg) && reg_write && (rs2 != 5'd0);
+
+    assign rs1_data = (rs1_data_bypass == 0) ? rs1_data_decode: write_data;
+    assign rs2_data = (rs2_data_bypass == 0) ? rs2_data_decode: write_data;                
     
+    always_comb begin
+        if(opcode == 7'b0100011)
+            case (funct3)
+                    3'b000:  mem_wbe = 4'b0001; // SB (Store Byte) -> 默认写最低字节
+                    3'b001:  mem_wbe = 4'b0011; // SH (Store Half-word) -> 默认写低半字
+                    3'b010:  mem_wbe = 4'b1111; // SW (Store Word) -> 全字写入
+                    default: mem_wbe = 4'b0000;
+            endcase
+        else mem_wbe = 4'b0000;
+    end
     // Register File instantiation
     RegFile #(
         .DATA_WIDTH(DATA_WIDTH),

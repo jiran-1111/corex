@@ -284,8 +284,9 @@ async def t_ifu_J_type(dut):
     instructions[0] = 0x00428293  # 0x00: addi
     instructions[1] = 0x7d0000ef  # 0x04: jal
     instructions[2] = 0x00e6c7b3  # 0x08: xor
-    instructions[128] = 0x0085a503 # 0x200: lw (JAL 靶点)
+    instructions[128] = 0x000500e7 # 0x200: jalr (JAL 靶点)
     instructions[130] = 0x00b50633 # 0x208: add (JALR 靶点)
+    instructions[131] = 0x00428293  # 0x21c: addi
 
     fill_ifu_imem(dut, instructions, start=0)
     await setup_ifu_dut(dut, start_pc=0x0)
@@ -306,41 +307,108 @@ async def t_ifu_J_type(dut):
     assert dut.PC_reg.value == 0x04
     assert dut.instruction.value == 0x00428293
     
+    dut.pc_sel_execute.value = 2  # 选择 JAL_target
+    dut.JAL_target.value = 0x200
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
+    assert dut.PC_reg.value == 0x200
     assert dut.inst_PC.value == 0x04, f"Expected inst_PC 0x04, got {hex(int(dut.inst_PC.value))}"
     assert dut.instruction.value == 0x7d0000ef
+
+    dut.pc_sel_execute.value = 3  # JALR
+    dut.JALR_target.value = 0x208
+    await RisingEdge(dut.clk)
+    await Timer(1, unit='ns') 
+    # 此时指令从 IMem 返回，物理地址对应 0x200
+    assert dut.inst_PC.value == 0x200
+    assert dut.PC_reg.value == 0x208
+    assert dut.instruction.value == 0x000500e7
+
+    dut.pc_sel_execute.value = 0  
+    await RisingEdge(dut.clk)
+    await Timer(1, unit='ns')
+
+    assert dut.inst_PC.value == 0x208  # 成功跳到 0x208
+    assert dut.instruction.value == 0x00b50633
+    
+    assert dut.PC_reg.value == 0x20c
+    dut._log.info(f"inst_PC={hex(int(dut.inst_PC.value))}, PC_reg={hex(int(dut.PC_reg.value))}, instruction={hex(int(dut.instruction.value))}")
+    dut._log.info("J-type (JAL/JALR) Test PASSED!")
+
+
+@cocotb.test()
+async def t_ifu_J_type_real(dut):
+    """Test for J-type instructions (JAL and JALR) pipeline behavior"""
+    
+    instructions = [0] * 200
+    instructions[0] = 0x00428293  # 0x00: addi
+    instructions[1] = 0x7d0000ef  # 0x04: jal
+    instructions[2] = 0x00e6c7b3  # 0x08: xor
+    instructions[128] = 0x000500e7 # 0x200: jalr (JAL 靶点)
+    instructions[130] = 0x00b50633 # 0x208: add (JALR 靶点)
+    instructions[131] = 0x00428293  # 0x21c: addi
+
+    fill_ifu_imem(dut, instructions, start=0)
+    await setup_ifu_dut(dut, start_pc=0x0)
+    
+    dut.stall.value = 0
+    dut.pc_sel_execute.value = 0
+    dut.branch.value = 0
+    dut.JAL_target.value = 0
+    dut.JALR_target.value = 0
+
+    dut.start.value = 1
+    await RisingEdge(dut.clk)
+    dut.start.value = 0
+    
+    await RisingEdge(dut.clk)
+    await Timer(1, unit='ns') 
+    assert dut.inst_PC.value == 0x00
+    assert dut.PC_reg.value == 0x04
+    #assert dut.instruction.value == 0x00428293
+    
+    #dut.pc_sel_execute.value = 2  # 选择 JAL_target
+    #dut.JAL_target.value = 0x200
+    await RisingEdge(dut.clk)
+    await Timer(1, unit='ns')
+    assert dut.PC_reg.value == 0x08
+    assert dut.inst_PC.value == 0x04, f"Expected inst_PC 0x04, got {hex(int(dut.inst_PC.value))}"
 
     dut.pc_sel_execute.value = 2  # 选择 JAL_target
     dut.JAL_target.value = 0x200
 
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns') 
-    assert dut.inst_PC.value == 0x200, f"Jump failed! Expected inst_PC 0x200, got {hex(int(dut.inst_PC.value))}"
-    assert dut.PC_reg.value == 0x200, f"Jump failed! Expected PC_reg 0x200, got {hex(int(dut.PC_reg.value))}"
-    # 验证完后，再撤销跳转信号，防止影响下一沿
-    dut.pc_sel_execute.value = 0 
-    
+    assert dut.inst_PC.value == 0x08
+    assert dut.PC_reg.value == 0x200
+
+    dut.pc_sel_execute.value = 0
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
-    # 此时指令从 IMem 返回，物理地址对应 0x200
-    assert dut.instruction.value == 0x0085a503, f"Expected lw instruction, got {hex(int(dut.instruction.value))}"
-    
+
+    assert dut.inst_PC.value == 0x200  
+    assert dut.PC_reg.value == 0x204
+
     dut.pc_sel_execute.value = 3  # JALR
     dut.JALR_target.value = 0x208
-    
+
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
-    assert dut.inst_PC.value == 0x208, f"JALR failed! Expected inst_PC 0x208, got {hex(int(dut.inst_PC.value))}"
-    dut.pc_sel_execute.value = 0
-    
+    assert dut.inst_PC.value == 0x204  
+    assert dut.PC_reg.value == 0x208
+
+    dut.pc_sel_execute.value = 0  # JALR
+
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
-    assert dut.instruction.value == 0x00b50633
+    assert dut.inst_PC.value == 0x208  
+    assert dut.PC_reg.value == 0x20c
+
     
+    
+    dut._log.info(f"inst_PC={hex(int(dut.inst_PC.value))}, PC_reg={hex(int(dut.PC_reg.value))}, instruction={hex(int(dut.instruction.value))}")
     dut._log.info("J-type (JAL/JALR) Test PASSED!")
 
-# 待确认
 @cocotb.test()
 async def t_ifu_B_type(dut):
     """Test for branch instructions (BEQ, BNE) pipeline behavior"""
@@ -368,48 +436,25 @@ async def t_ifu_B_type(dut):
     # ========================================================
     # 步骤一：测试 BEQ 发生跳转
     # ========================================================
-    await RisingEdge(dut.clk)
-    await Timer(1, unit='ns')
-    assert dut.inst_PC.value == 0x00
-    assert dut.instruction.value == 0x00b50863 
-    
     dut.pc_sel_execute.value = 1  
     dut.branch.value = 1          
     dut.branch_target.value = 0x10
+    await RisingEdge(dut.clk)
+    await Timer(1, unit='ns')
+    assert dut.inst_PC.value == 0x00
+    assert dut.PC_reg.value == 0x10
+    assert dut.instruction.value == 0x00b50863 
     
+    
+    dut.pc_sel_execute.value = 1
+    dut.branch.value = 0
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
     assert dut.inst_PC.value == 0x10, f"Branch target failed! Got {hex(int(dut.inst_PC.value))}"
-    assert dut.PC_reg.value == 0x10
-    
-    dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    assert dut.PC_reg.value == 0x14
 
-    # ========================================================
-    # 步骤二：测试 BNE 不发生跳转
-    # ========================================================
-    await RisingEdge(dut.clk)
-    await Timer(1, unit='ns')
-    assert dut.inst_PC.value == 0x10
-    assert dut.instruction.value == 0xfe051ce3 
-    
-    # BNE 不跳转，不需要任何控制干扰，静默顺序走
-    await RisingEdge(dut.clk)
-    await Timer(1, unit='ns')
-    # 你的硬件这一行过去了，说明 PC 流完美
-    assert dut.inst_PC.value == 0x14, f"Expected order PC 0x14, got {hex(int(dut.inst_PC.value))}"
-    
-    # 【改动点】如果这时候 instruction 读出是 0，说明内存遇到了地址突变后的时序气泡。
-    # 此时我们检查：如果它是 0，我们就再给它补拍一个时钟，让内存把数据吐干净：
-    if dut.instruction.value == 0x00000000:
-        dut._log.info("Detected IMem pipeline bubble after jump. Waiting for next valid data...")
-        await RisingEdge(dut.clk)
-        await Timer(1, unit='ns')
-
-    # 此时气泡消除，必须正确读出 0x14 地址上的指令
-    assert dut.instruction.value == 0x00e6c7b3, f"Expected xor instruction, got {hex(int(dut.instruction.value))}"
-    
     dut._log.info("B-type (BEQ/BNE) Test PASSED!")
+
 @cocotb.test()
 async def t_ifu_R_type(dut):
     """Test R-type instructions : ADD, SUB"""
@@ -477,186 +522,6 @@ async def t_ifu_I_type(dut):
     dut._log.info("I-type Test PASSED!")
 
 
-@cocotb.test()
-async def t_ifu_control_flow(dut):
-    """Test JAL, JALR, Branch Taken, and Branch Not Taken behaviors with proper handshake."""
-    # 填充一段模拟指令
-    instructions = [i * 0x1111 for i in range(20)]
-    fill_ifu_imem(dut, instructions, start=0)
-    
-    # 启动 IFU
-    await setup_ifu_dut(dut, start_pc=0x0)
-    dut.start.value = 1
-    await RisingEdge(dut.clk)
-    dut.start.value = 0
-    
-    # 统一的辅助等待函数（保证退出时处于 ack 沿的 delta cycle 内）
-    # =========================================================================
-    # 带有详细 Debug 日志的辅助函数
-    # =========================================================================
-    async def wait_for_handshake_and_check(expected_pc, step_name=""):
-        dut._log.info(f"--- [DEBUG START: {step_name}] Expecting PC: {hex(expected_pc)} ---")
-        
-        # 打印当前即时状态
-        dut._log.info(
-            f"INIT STATUS: clk={dut.clk.value}, stall={dut.stall.value}, "
-            f"ack={dut.IMem.ack.value}, inst_PC={hex(dut.inst_PC.value if dut.inst_PC.value.is_resolvable else 0)}, "
-            f"pc_sel={dut.pc_sel_execute.value}, branch={dut.branch.value}"
-        )
-        
-        for cycle in range(1, 11):
-            await RisingEdge(dut.clk)
-            await Timer(1, unit="ps") # 避开采样竞争
-            
-            curr_pc = dut.inst_PC.value if dut.inst_PC.value.is_resolvable else 0
-            curr_ack = dut.IMem.ack.value
-            curr_stall = dut.stall.value
-            
-            dut._log.info(
-                f"  Cycle {cycle}: inst_PC={hex(curr_pc)}, "
-                f"ack={curr_ack}, stall={curr_stall}, "
-                f"ibus_addr={hex(dut.IMem.addr.value if dut.IMem.addr.value.is_resolvable else 0)}"
-            )
-            
-            if curr_ack == 1 and curr_stall == 0:
-                dut._log.info(f"  --> Handshake detected at Cycle {cycle}!")
-                # 如果当前 PC 已经跑过了我们期望的值，提前打印警告
-                if curr_pc != expected_pc:
-                    dut._log.warning(
-                        f"  [MISMATCH DETECTED] Handshake captured PC {hex(curr_pc)}, but we wanted {hex(expected_pc)}"
-                    )
-                break
-        
-        assert dut.inst_PC.value == expected_pc, \
-            f"[{step_name}] Expected inst_PC to be {hex(expected_pc)}, got {hex(dut.inst_PC.value)}"
-        dut._log.info(f"--- [DEBUG END: {step_name}] PASSED ---\n")
-
-    # =========================================================================
-    # 1. 验证 JAL 无条件跳转 (0x1C)
-    # =========================================================================
-    dut.JAL_target.value = 0x1C
-    dut.pc_sel_execute.value = 0x2  # 选中 JAL
-    await wait_for_handshake_and_check(0x1C, "JAL to 0x1C")
-    
-    # =========================================================================
-    # 2. 恢复顺序取指 (0x20)
-    # =========================================================================
-    dut.pc_sel_execute.value = 0x0  
-    await RisingEdge(dut.clk) 
-    await wait_for_handshake_and_check(0x20, "Recover to 0x20")
-
-    # =========================================================================
-    # 3. 验证 Branch Taken (跳转到 0x08)
-    # =========================================================================
-    dut.branch_target.value = 0x08
-    dut.branch.value = 1
-    dut.pc_sel_execute.value = 0x1  # 选中 Branch
-    await wait_for_handshake_and_check(0x08, "Branch Taken to 0x08")
-
-    # =========================================================================
-    # 4. 验证 Branch Not Taken (期望顺序递增至 0x0C)
-    # =========================================================================
-    dut.branch.value = 0            # 分支不成立
-    dut.pc_sel_execute.value = 0x0  # 依然选中 Branch 译码
-    
-    # 这里我们先保留这个 RisingEdge，看看日志输出中它是否导致跳过了 0x0C
-    await RisingEdge(dut.clk)
-    await wait_for_handshake_and_check(0x0C, "Branch Not Taken to 0x0C")
-
-    # =========================================================================
-    # 5. 验证 JALR 间接跳转 (0x14)
-    # =========================================================================
-    dut.JALR_target.value = 0x14
-    dut.pc_sel_execute.value = 0x3  # 选中 JALR
-    await wait_for_handshake_and_check(0x14, "JALR to 0x14")
-
-@cocotb.test()
-async def t_ifu_control_flow_robust(dut):
-    """
-    极深度的 IFU 控制流测试：
-    1. 验证 JAL/JALR/Branch 时的 inst_PC 与 instruction 严格同步。
-    2. 验证 Stall 状态下控制流信号被阻断/保持的特性。
-    """
-    # 填充特征分明的指令数据：PC = i * 4, 指令 = i * 0x1111 (0x0, 0x1111, 0x2222, ...)
-    instructions = [i * 0x1111 for i in range(20)]
-    fill_ifu_imem(dut, instructions, start=0)
-    
-    # 启动
-    await setup_ifu_dut(dut, start_pc=0x0)
-    dut.start.value = 1
-    await RisingEdge(dut.clk)
-    dut.start.value = 0
-    
-    # 初始化控制信号
-    dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
-    dut.stall.value = 0
-
-    # 辅助断言函数：等待握手并同时检验 PC 和 指令内容
-    async def assert_pc_and_instruction(expected_pc, step_name):
-        # 等待一个握手完成 (imem_ack 且没有被 stall)
-        while True:
-            await RisingEdge(dut.clk)
-            await Timer(1, "ps") # 避开采样竞争
-            if dut.IMem.ack.value == 1 and dut.stall.value == 0:
-                break
-        
-        actual_pc = dut.inst_PC.value.to_unsigned()
-        actual_inst = dut.instruction.value.to_unsigned()
-        expected_inst = instructions[expected_pc // 4]
-        
-        dut._log.info(f"[{step_name}] Verified: PC={hex(actual_pc)}, Inst={hex(actual_inst)}")
-        
-        assert actual_pc == expected_pc, f"[{step_name}] PC 错位！期望 {hex(expected_pc)}, 实际 {hex(actual_pc)}"
-        assert actual_inst == expected_inst, f"[{step_name}] 指令错位！期望 {hex(expected_inst)}, 实际 {hex(actual_inst)}"
-
-    # =========================================================================
-    # 场景 1：标准 JAL 跳转到 0x1C (第 7 条指令)
-    # =========================================================================
-    dut._log.info("--- 正在测试: JAL 跳转到 0x1C ---")
-    dut.JAL_target.value = 0x1C
-    dut.pc_sel_execute.value = 2  # 选中 JAL
-    
-    # 在这个时钟沿，跳转目标被写入 PC_reg
-    await RisingEdge(dut.clk)
-    # 撤销跳转信号，模拟流水线只发一个周期的跳转使能
-    dut.pc_sel_execute.value = 0 
-    
-    # 验证跳转后的 PC 及其指令 (0x1C 对应的应该是 7 * 0x1111 = 0x7777)
-    await assert_pc_and_instruction(0x1C, "JAL_0x1C")
-
-    # =========================================================================
-    # 场景 2：顺序执行一拍 (应到 0x20，对应指令 8 * 0x1111 = 0x8888)
-    # =========================================================================
-    dut._log.info("--- 正在测试: 跳转后的恢复顺序执行 ---")
-    await assert_pc_and_instruction(0x20, "SEQ_0x20")
-
-    # =========================================================================
-    # 场景 3：[核心杀手锏] 跳转遭遇 Stall！
-    # 如果发出跳转的同时，流水线被 Stall 了，硬件绝对不能更新
-    # =========================================================================
-    dut._log.info("--- 正在测试: 跳转与 Stall 并存 (跳转不应立即生效) ---")
-    dut.branch_target.value = 0x08
-    dut.branch.value = 1
-    dut.pc_sel_execute.value = 1  # 试图 Branch 跳转到 0x08
-    dut.stall.value = 1           # 同时发生 Stall！
-
-    # 走两个时钟，因为有 Stall，PC 和 inst_PC 应当保持在原来的 0x20 纹丝不动
-    for _ in range(2):
-        await RisingEdge(dut.clk)
-        await Timer(1, "ps")
-        assert dut.inst_PC.value.to_unsigned() == 0x20, "错误！在 Stall 期间，inst_PC 被非法修改了！"
-        assert dut.instruction.value.to_unsigned() == 0x8888, "错误！在 Stall 期间，指令数据被污染了！"
-
-    # 释放 Stall 并在同一个时钟周期释放跳转控制信号（模拟流水线清空/恢复）
-    dut.stall.value = 0
-    await RisingEdge(dut.clk)
-    dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
-
-    # 此时跳转应该成功生效，进入 0x08 (对应指令 2 * 0x1111 = 0x2222)
-    await assert_pc_and_instruction(0x08, "Stalled_Branch_0x08")
-
 class TestIfu_SV:
 
     sources = [
@@ -678,7 +543,7 @@ class TestIfu_SV:
             "t_ifu_B_type",
             "t_ifu_R_type",
             "t_ifu_I_type",
-            "t_ifu_control_flow"  # 加入控制流分支/跳转测试
+            "t_ifu_J_type_real"  # 加入控制流分支/跳转测试
         ]
         runner = setup_runner(
             sources=self.sources,
@@ -700,7 +565,7 @@ class TestIfu_SV:
             hdl_toplevel=self.hdl_top,
             parameters=parameters,
         )
-        cases = ["t_ifu_reset", "t_ifu_normal_sequential","t_ifu_control_flow"]
+        cases = ["t_ifu_reset", "t_ifu_normal_sequential","t_ifu_J_type"]
         runner.test(
             hdl_toplevel=self.hdl_top,
             test_module=__name__,

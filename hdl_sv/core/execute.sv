@@ -1,3 +1,11 @@
+/*
+ * COREX: Co-modeling RISC-V Example Core
+ * 
+ * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
+ * All rights reserved.
+ * 
+ * Author: Ran Ji
+ */
 /* COREX: Co-modeling RISC-V Example Core
  *
  * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
@@ -23,11 +31,15 @@ module execute #(
     input logic [DATA_WIDTH-1:0] regRead_1,
     input logic [DATA_WIDTH-1:0] regRead_2,
     input logic [DATA_WIDTH-1:0] extend,// Immediate value
-    output logic [DATA_WIDTH-1:0] ALU_result// Computation output
+    input logic branch_op,
 
+    output logic [DATA_WIDTH-1:0] ALU_result,// Computation output
+    output logic branch_taken,
+    output logic [ADDR_WIDTH-1:0] JALR_target
+    //output logic zero
 );
     logic [5:0] ALU_Control;
-
+    logic ALU_branch;
     always_comb begin
         if ({ALU_Operation, funct7} == {3'b000, 7'b0000000}) begin
             // R-Type standard operations (ADD, SLL, SLT, SLTU, XOR, SRL, OR, AND)
@@ -49,30 +61,45 @@ module execute #(
             // I-Type standard immediates (ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI)
             ALU_Control = {3'b000, funct3};
         end 
+        else if (ALU_Operation == 3'b010) begin
+            // B-Type branches (BEQ, BNE, BLT, BGE, BLTU, BGEU)
+            ALU_Control = {3'b010, funct3}; 
+        end
+        else if (ALU_Operation == 3'b011) begin
+            // JAL JALR
+            ALU_Control = 6'b011_111; 
+        end
         else begin
             // Default to ADD for AUIPC, LUI, or safety fallback
             ALU_Control = 6'b000_000; 
         end
     end
 
-    logic [DATA_WIDTH-1:0] operand_A;//
-    logic [DATA_WIDTH-1:0] operand_B;
+    assign branch_taken  = (ALU_branch & branch_op)? 1 : 0; 
+    logic [DATA_WIDTH-1:0] alu_in_a;
+    logic [DATA_WIDTH-1:0] alu_in_b;
 
     // Mux for Operand A
-    assign operand_A = (ALU_ASrc == 2'b01) ? PC : 
-                       (ALU_ASrc == 2'b10) ? (PC + 4) : 
-                                             regRead_1;
+    assign alu_in_a =  (ALU_ASrc == 2'b01) ? PC : 
+                       (ALU_ASrc == 2'b10) ? (PC + 4) :
+                       (ALU_ASrc == 2'b11) ? '0 :       // 显式为 LUI 提供 0
+                                     regRead_1; 
 
     // Mux for Operand B
-    assign operand_B = ALU_BSrc ? extend : regRead_2;
+    assign alu_in_b = ALU_BSrc ? extend : regRead_2;
+    
+
+    assign JALR_target = ALU_result & 32'hffff_fffe;
 
     ALU #(
         .DATA_WIDTH(DATA_WIDTH)
     ) u_alu (
         .ALU_Control(ALU_Control), 
-        .operand_A  (operand_A), 
-        .operand_B  (operand_B), 
-        .ALU_result (ALU_result)
+        .alu_in_a  (alu_in_a), 
+        .alu_in_b  (alu_in_b), 
+        .ALU_result (ALU_result),
+        //.zero(zero), 
+        .branch(ALU_branch)
     );
 
 endmodule

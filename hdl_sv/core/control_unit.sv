@@ -1,3 +1,11 @@
+/*
+ * COREX: Co-modeling RISC-V Example Core
+ * 
+ * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
+ * All rights reserved.
+ * 
+ * Author: Ran Ji
+ */
 /* COREX: Co-modeling RISC-V Example Core
  *
  * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
@@ -11,6 +19,7 @@
 
 module ControlUnit #(
     // Reserved for future extensions
+    parameter int DATA_WIDTH = 32
 )(
     input  logic       clk,
     input  logic       rst,
@@ -23,7 +32,7 @@ module ControlUnit #(
     output logic       regWrite,        // Register write enable
 
     output logic branch_op,
-    output logic memRead,//内存读写控制
+    output logic memRead,//内存读写控制 dmemtop
     output logic memWrite,
     output logic memtoReg,
     output logic [1:0] next_PC_sel
@@ -57,8 +66,8 @@ module ControlUnit #(
                            ((opcode == AUIPC) | (opcode == LUI))? 3'b110 : 0;
 
     assign operand_A = (opcode == AUIPC)?  2'b01 :
-                        (opcode == LUI)?    2'b11 :
-                        ((opcode == JALR)  | (opcode == JAL))?  2'b10 : 0;
+                        (opcode == LUI) ?  2'b11 :
+                        ((opcode == JALR)  || (opcode == JAL))?  2'b10 : 0;
 
     assign operand_B = ((opcode == I_TYPE) | (opcode == STORE)|
                            (opcode == LOAD) | (opcode == AUIPC) |
