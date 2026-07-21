@@ -120,7 +120,22 @@ module CoreTop #(
     // -------------------------------------------------------------------------
     logic [DATA_WIDTH-1:0] mem_rdata;
     logic                  dmem_gnt, dmem_rack, dmem_wack, dmem_err;
+    
+    
+    // 1. 定义一个寄存器，把原始的 flush 延迟一拍
+    logic flush_d;
+    logic real_if_id_flush;
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) 
+            flush_d <= 1'b0;
+        else 
+            flush_d <= flush; // 锁存上一拍的 flush
+    end
 
+    // 2. 最终给 IF/ID 寄存器的 flush 信号，要覆盖“当前拍”和“下一拍”
+    assign real_if_id_flush = flush || flush_d;
+    
+    
     // =========================================================================
     // 1. IF 阶段 (Instruction Fetch)
     // =========================================================================
@@ -156,7 +171,8 @@ module CoreTop #(
     ) u_if_id_reg (
         .clk      (clk),
         .rst      (rst),
-        .flush    (flush),
+        .flush    (real_if_id_flush),
+        //.flush    (flush),
         .en       (!stall),
         .ctrl_in  (if_valid),
         .ctrl_out (id_valid),
@@ -310,7 +326,7 @@ module CoreTop #(
     // =========================================================================
     // 调试日志 (Debug Monitor)
     // =========================================================================
-    `define DEBUG_CORE // 如果你想一直开启打印，可以在这里直接 define
+    //`define DEBUG_CORE // 如果你想一直开启打印，可以在这里直接 define
 
     `ifdef DEBUG_CORE
     initial begin

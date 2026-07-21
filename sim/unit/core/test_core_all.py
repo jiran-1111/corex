@@ -277,7 +277,7 @@ async def t_core_alu_stall_and_redirect(dut):
 
     await setup_dut(dut)
     #await run_cycles(dut, 60)
-    for i in range(20):
+    for i in range(60):
         await RisingEdge(dut.clk)
         dut._log.info(
             f"Cycle {i}: PC={hex(dut.u_ifu.inst_PC.value)} "

@@ -5,6 +5,7 @@
 #
 # Author: Ziqing Lin
 
+
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
@@ -15,20 +16,38 @@ from ..cocotb_utils import CLK_PERIOD_NS, HDL_SV_DIR, Runner, setup_runner
 NOP = 0x0000_0013
 
 
+
 async def clock_tick(dut):
     await RisingEdge(dut.clk)
     await Timer(1, unit="step")
 
 
-async def setup_dut(dut):
-    """Setup DUT with clock and reset."""
+
+async def setup_dut(dut, start_pc: int = 0):
     clock = Clock(dut.clk, CLK_PERIOD_NS, unit="ns")
     cocotb.start_soon(clock.start())
 
+    # 1. 挂起复位
     dut.rst.value = 1
+
+    dut.start.value = 0
+    dut.program_address.value = start_pc
+
     await ClockCycles(dut.clk, 2)
     await Timer(1, unit="step")
+    
+    # 2. 解除复位并给一个单周期的 start 脉冲
     dut.rst.value = 0
+  
+    dut.start.value = 1  # 给出 start 脉冲
+    
+    await RisingEdge(dut.clk)
+    await Timer(1, unit="step")
+    
+
+    dut.start.value = 0  # <---【关键修改】及时拉低 start，允许 PC 开始自增！
+    
+    await clock_tick(dut)
 
 
 def i_type(imm: int, rs1: int, funct3: int, rd: int, opcode: int = 0x13) -> int:
@@ -92,19 +111,25 @@ def j_type(imm: int, rd: int, opcode: int = 0x6F) -> int:
 
 
 def fill_mem(dut, words: list[int]):
+    """通过层次化路径填充 IFU 内部 IMEM。"""
+    # 填充 NOP 刷空前 64 个字
     for i in range(64):
-        dut.imem.mem[i].value = NOP
+        dut.u_ifu.IMem.imem.mem[i].value = NOP
 
+    # 写入程序指令
     for i, word in enumerate(words):
-        dut.imem.mem[i].value = word
+        dut.u_ifu.IMem.imem.mem[i].value = word
 
 
 def read_reg(dut, index: int) -> int:
-    return int(dut.core.reg_file.regs[index].value)
+    """从 Decoder 内部的寄存器堆读取寄存器值。"""
+    return int(dut.u_decoder.u_regfile.regs[index].value)
 
 
 def read_dmem(dut, index: int) -> int:
-    return int(dut.dmem.mem[index].value)
+    """读取 DMem 内部指定字（Word）索引的数据。"""
+    # 假设 DMemTop 内部的 Ram 存储器实例名为 u_dmem 或 mem
+    return int(dut.u_dmem.dmem.mem[index].value)
 
 
 async def run_cycles(dut, cycles: int):
@@ -233,6 +258,7 @@ async def t_core_load_store(dut):
     assert read_dmem(dut, 5) == 0x13
 
 
+
 class TestCore_SV:
     """Test the minimal three-stage core."""
 
@@ -253,17 +279,10 @@ class TestCore_SV:
             HDL_SV_DIR / "core" / "ALU.sv",
             HDL_SV_DIR / "core" / "execute.sv",
             HDL_SV_DIR / "core" / "ifu.sv",
-            HDL_SV_DIR / "core" / "core.sv",
+            HDL_SV_DIR / "core" / "core_new.sv",
         ]
         cls.hdl_top = "CoreTop"
         cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)
-
-    def test_core_program(self):
-        self.runner.test(
-            hdl_toplevel=self.hdl_top,
-            test_module=__name__,
-            testcase="t_core_alu_stall_and_redirect",
-        )
 
     def test_raw_stall(self):
         self.runner.test(
@@ -271,6 +290,15 @@ class TestCore_SV:
             test_module=__name__,
             testcase="t_core_raw_stall_only",
         )
+    
+    def test_core_program(self):
+        self.runner.test(
+            hdl_toplevel=self.hdl_top,
+            test_module=__name__,
+            testcase="t_core_alu_stall_and_redirect",
+        )
+
+    
 
     def test_control_stall(self):
         self.runner.test(
@@ -285,3 +313,11 @@ class TestCore_SV:
             test_module=__name__,
             testcase="t_core_load_store",
         )
+
+    def test_control_stall_jal_only(self):
+        self.runner.test(
+            hdl_toplevel=self.hdl_top,
+            test_module=__name__,
+            testcase="t_core_control_stall_jal_only",
+        )
+    

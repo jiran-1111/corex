@@ -21,8 +21,6 @@ module Ifu #(
     input logic [ADDR_WIDTH-1:0] branch_target,
     input logic [1:0] pc_sel_execute,
     input logic branch_taken,
-    //input logic flush,
-
     
     output logic [DATA_WIDTH-1:0] instruction, // 从内存读出的32位指令
     output logic [ADDR_WIDTH-1:0] inst_PC,      // 当前返回指令对应的PC地址
