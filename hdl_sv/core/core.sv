@@ -1,79 +1,74 @@
-/* COREX: Co-modeling RISC-V Example Core
- *
- * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
- * All rights reserved.
- *
- * Author: Ran Ji
+/*
+ * COREX: Co-modeling RISC-V Example Core
+ * 
+ * 3-Stage Pipelined RISC-V Processor Core
+ * Stage 1: IF (Instruction Fetch)
+ * Stage 2: ID / EX (Decode & Execute)
+ * Stage 3: MEM / WB (Memory Access & Writeback)
  */
 
-module corex #(
+module CoreTop #(
     parameter int DATA_WIDTH = 32,
-    parameter int ADDR_WIDTH = 32
+    parameter int ADDR_WIDTH = 32,
+    parameter string IMEM_INIT_FILE = "",
+    parameter string DMEM_INIT_FILE = ""
 )(
-    input  logic                  clk,
-    input  logic                  rst,
-    input  logic                  start,
-    input  logic                  stall,
-    input  logic [ADDR_WIDTH-1:0] program_address,
-
-    output logic                  monitor_valid,      // 当前时钟周期是否有有效指令写回
-    output logic [ADDR_WIDTH-1:0] monitor_pc,         // 当前写回指令对应的 PC
-    output logic [4:0]            monitor_waddr,      // 写回的目的寄存器号 (rd)
-    output logic [DATA_WIDTH-1:0] monitor_wdata       // 写回寄存器的真实数据
+    input logic clk,
+    input logic rst,
+    input logic start,
+    input logic [ADDR_WIDTH-1:0] program_address
 );
 
-    // ==========================================================================
-    // 1. Instruction Fetch (IF) Stage
-    // ==========================================================================
-    logic [DATA_WIDTH-1:0] if_instruction;// imem输出 32位指令
-    logic [ADDR_WIDTH-1:0] if_pc;         // pc_reg 当前指令对应的pc地址
+    // =========================================================================
+    // 信号定义
+    // =========================================================================
 
-    Ifu #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH(ADDR_WIDTH)
-    ) u_ifu (
-        .clk(clk),
-        .rst(rst),
-        .start(start),
-        .stall(stall),
-        .program_address(program_address),
-        
-        .instruction(if_instruction),
-        .inst_PC(if_pc)
-    );
+    // 流水线控制信号
+    logic stall;
+    logic flush;
+    logic id_jump_flush;
 
-    // ==========================================================================
-    // 2. IF/ID Pipeline Register
-    // ==========================================================================
-    localparam int IF_ID_CTRL_W = 1;
-    localparam int IF_ID_DATA_W = ADDR_WIDTH + DATA_WIDTH;
 
-    logic [IF_ID_CTRL_W-1:0] if_id_ctrl_out;
-    logic [IF_ID_DATA_W-1:0] if_id_data_out;
 
-    logic [ADDR_WIDTH-1:0]   id_pc;
-    logic [DATA_WIDTH-1:0]   id_instruction;
+    assign stall = 1'b0; // 基础三级流水线暂未加入 Hazard Unit 时固定为 0
+    assign flush = id_jump_flush || ((ex_pc_sel == 2'b01) && ex_branch_taken);
+ 
 
-    PipelineReg #(
-        .CTRL_WIDTH(IF_ID_CTRL_W),
-        .DATA_WIDTH(IF_ID_DATA_W)
-    ) u_pipe_if_id (
-        .clk(clk),
-        .rst(rst),
-        .flush(1'b0),
-        .en(!stall),
+    // -------------------------------------------------------------------------
+    // Stage 1: IF 阶段信号
+    // -------------------------------------------------------------------------
+    logic [DATA_WIDTH-1:0] if_instruction;
+    logic [ADDR_WIDTH-1:0] if_pc;
+    logic if_valid;
 
-        .ctrl_in(1'b1), 
-        .ctrl_out(if_id_ctrl_out),
-        .data_in({if_pc, if_instruction}),
-        .data_out(if_id_data_out)
-    );
+    // 反馈跳转信号 (来自 ID/EX 阶段)
+    logic [2:0]            ex_pc_sel;
+    logic                  ex_branch_taken;
+    logic [ADDR_WIDTH-1:0] ex_branch_target;
+    logic [ADDR_WIDTH-1:0] ex_jal_target;
+    logic [ADDR_WIDTH-1:0] ex_jalr_target;
 
-    assign {id_pc, id_instruction} = if_id_data_out;
+    // -------------------------------------------------------------------------
+    // IF/ID 流水线寄存器输出
+    // -------------------------------------------------------------------------
+    logic [DATA_WIDTH-1:0] id_instruction;
+    logic [ADDR_WIDTH-1:0] id_pc;
+    logic id_valid;
+    // -------------------------------------------------------------------------
+    // Stage 2: ID/EX 阶段信号
+    // -------------------------------------------------------------------------
+    // Control Unit 输出
+    logic [2:0] id_alu_op;
+    logic [1:0] id_operand_a;
+    logic       id_operand_b;
+    logic [2:0] id_extend_sel;
+    logic       id_reg_write;
+    logic       id_branch_op;
+    logic       id_mem_read;
+    logic       id_mem_write;
+    logic       id_mem_to_reg;
 
-    // ==========================================================================
-    // 3. Instruction Decode (ID) Stage
-    // ==========================================================================
+    // Decoder 输出
     logic [6:0]            id_opcode;
     logic [6:0]            id_funct7;
     logic [2:0]            id_funct3;
@@ -83,186 +78,250 @@ module corex #(
     logic [DATA_WIDTH-1:0] id_extend_imm;
     logic [DATA_WIDTH-1:0] id_rs1_data;
     logic [DATA_WIDTH-1:0] id_rs2_data;
+    logic [DATA_WIDTH/8-1:0] id_mem_wbe;
 
-    logic [2:0]            id_alu_op;
-    logic [1:0]            id_operand_A_sel;
-    logic                  id_operand_B_sel;
-    logic                  id_extend_sel;
-    logic                  id_reg_write;
-
-    // Feedback signals from EX stage
-    logic                  ex_reg_write;
-    logic [4:0]            ex_rd;
+    // Execute 模块输出
     logic [DATA_WIDTH-1:0] ex_alu_result;
 
-    ControlUnit u_control (
-        .clk(clk),
-        .rst(rst),
-        .opcode(id_opcode),//decoder的输出
+    // 写回阶段反馈信号 (来自 MEM/WB 阶段)
+    logic                  wb_reg_write;
+    logic [4:0]            wb_write_reg;
+    logic [DATA_WIDTH-1:0] wb_write_data;
 
-        .ALUOp(id_alu_op),
-        .operand_A(id_operand_A_sel),
-        .operand_B(id_operand_B_sel),
-        .extend_sel(id_extend_sel),
-        .regWrite(id_reg_write)
+    // -------------------------------------------------------------------------
+    // Forwarding (前向传递/旁路) 信号
+    // -------------------------------------------------------------------------
+    logic [DATA_WIDTH-1:0] forward_a_data;
+    logic [DATA_WIDTH-1:0] forward_b_data;
+
+    // -------------------------------------------------------------------------
+    // EX/MEM 流水线寄存器数据打包与解包
+    // -------------------------------------------------------------------------
+    // 控制总线打拍 (EX/MEM)
+    typedef struct packed {
+        logic                  reg_write;
+        logic                  mem_to_reg;
+        logic                  mem_read;
+        logic                  mem_write;
+        logic [DATA_WIDTH/8-1:0] mem_wbe;
+        logic [4:0]            rd;
+    } ex_mem_ctrl_t;
+
+    // 数据总线打拍 (EX/MEM)
+    typedef struct packed {
+        logic [DATA_WIDTH-1:0] alu_result;
+        logic [DATA_WIDTH-1:0] rs2_data;
+    } ex_mem_data_t;
+
+    ex_mem_ctrl_t id_ex_ctrl_in, mem_ctrl_out;
+    ex_mem_data_t id_ex_data_in, mem_data_out;
+
+    // -------------------------------------------------------------------------
+    // Stage 3: MEM/WB 阶段信号
+    // -------------------------------------------------------------------------
+    logic [DATA_WIDTH-1:0] mem_rdata;
+    logic                  dmem_gnt, dmem_rack, dmem_wack, dmem_err;
+
+    // =========================================================================
+    // 1. IF 阶段 (Instruction Fetch)
+    // =========================================================================
+    Ifu #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .ADDR_WIDTH(ADDR_WIDTH)
+    ) u_ifu (
+        .clk             (clk),
+        .rst             (rst),
+        .start           (start),
+        .stall           (stall),
+        .flush           (flush),
+        .program_address (program_address),
+        .JAL_target      (ex_jal_target),
+        .JALR_target     (ex_jalr_target),
+        .branch_target   (ex_branch_target),
+        .pc_sel_execute  (ex_pc_sel),
+        .branch_taken    (ex_branch_taken),
+        .instruction     (if_instruction),
+        .inst_PC         (if_pc),
+        .valid           (if_valid)
     );
 
+    // =========================================================================
+    // Pipeline Reg 1: IF / ID
+    // =========================================================================
+    // 打拍保存 IF 阶段读出的指令与当前指令对应的 PC 地址
+
+    PipelineReg #(
+        .CTRL_WIDTH (1),            
+        .DATA_WIDTH (ADDR_WIDTH + DATA_WIDTH),
+        .RESET_VALUE(1'b0)
+
+    ) u_if_id_reg (
+        .clk      (clk),
+        .rst      (rst),
+        .flush    (flush),
+        .en       (!stall),
+        .ctrl_in  (if_valid),
+        .ctrl_out (id_valid),
+        .data_in  ({if_pc,if_instruction}),
+        .data_out ({id_pc,id_instruction})
+    );
+
+    // =========================================================================
+    // 2. ID / EX 阶段 (Decode & Execute)
+    // =========================================================================
+    
+    // 主控制器
+    ControlUnit #(
+        .DATA_WIDTH(DATA_WIDTH)
+    ) u_control_unit (
+        .clk          (clk),
+        .rst          (rst),
+        .opcode       (id_opcode),
+
+        .ALUOp        (id_alu_op),
+        .operand_A    (id_operand_a),
+        .operand_B    (id_operand_b),
+        .extend_sel   (id_extend_sel),
+        .regWrite     (id_reg_write),
+        .branch_op    (id_branch_op),
+        .memRead      (id_mem_read),
+        .memWrite     (id_mem_write),
+        .memtoReg     (id_mem_to_reg),
+        .next_PC_sel  (ex_pc_sel),
+        .jump_flush   (id_jump_flush)
+    );
+
+    // 指令译码器 & 寄存器堆
     Decoder #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) u_decoder (
-        .clk(clk),
-        .rst(rst),
-        .instruction(id_instruction),
+        .clk           (clk),
+        .rst           (rst),
+        .instruction   (id_instruction),
+        .PC            (id_pc),
+        .extend_sel    (id_extend_sel),
+        .reg_write     (wb_reg_write),      // 来自 MEM/WB 阶段写回使能
+        .write_reg     (wb_write_reg),      // 来自 MEM/WB 阶段写回地址
+        .write_data    (wb_write_data),     // 来自 MEM/WB 阶段写回数据
 
-        .extend_sel(id_extend_sel),// controlunitshuchu 
-        .reg_write(ex_reg_write),
-        .write_reg(ex_rd),
-        .write_data(ex_alu_result),
-
-        .opcode(id_opcode),
-        .funct7(id_funct7),
-        .funct3(id_funct3),
-        .rs1(id_rs1),
-        .rs2(id_rs2),
-        .rd(id_rd),
-        .extend_imm(id_extend_imm),
-        .rs1_data(id_rs1_data),
-        .rs2_data(id_rs2_data)
+        .opcode        (id_opcode),
+        .funct7        (id_funct7),
+        .funct3        (id_funct3),
+        .rs1           (id_rs1),
+        .rs2           (id_rs2),
+        .rd            (id_rd),
+        .extend_imm    (id_extend_imm),
+        .rs1_data      (id_rs1_data),
+        .rs2_data      (id_rs2_data),
+        .branch_target (ex_branch_target),
+        .JAL_target    (ex_jal_target),
+        .mem_wbe       (id_mem_wbe)
     );
 
-    // ==========================================================================
-    // 4. ID/EX Pipeline Register
-    // ==========================================================================
-    //localparam int ID_EX_CTRL_W = 7;
-    localparam int ID_EX_CTRL_W = 7 + ADDR_WIDTH;// 7 + 32 = 39 位
-    // 数据包中增加一路传递当前指令的 PC，用于 debug 追溯
-    //localparam int ID_EX_DATA_W = ADDR_WIDTH + DATA_WIDTH*3 + 5;
-    localparam int ID_EX_DATA_W = DATA_WIDTH*3 + 5; // 32*3 + 5 = 101 位
-
-    logic [ID_EX_CTRL_W-1:0] id_ex_ctrl_out;
-    logic [ID_EX_DATA_W-1:0] id_ex_data_out;
-
-    logic [2:0]            ex_alu_op;
-    //logic [1:0]            ex_alu_asrc;
-    //logic                  ex_alu_bsrc;
-    logic [1:0] ex_operand_A_sel;
-    logic ex_operand_B_sel;
-    logic [ADDR_WIDTH-1:0] ex_pc;
-    logic [DATA_WIDTH-1:0] ex_rs1_data;
-    logic [DATA_WIDTH-1:0] ex_rs2_data;
-    logic [DATA_WIDTH-1:0] ex_extend_imm;
-    logic [6:0]            ex_funct7;
-    logic [2:0]            ex_funct3;
-
-    PipelineReg #(
-        .CTRL_WIDTH(ID_EX_CTRL_W),
-        .DATA_WIDTH(ID_EX_DATA_W)
-    ) u_pipe_id_ex (
-        .clk(clk),
-        .rst(rst),
-        .flush(1'b0),
-        .en(!stall),
-
-        //.ctrl_in({id_alu_op, id_operand_A_sel, id_operand_B_sel, id_reg_write, id_pc}),
-        //.ctrl_out(id_ex_ctrl_out),
-        //.data_in({id_rs1_data, id_rs2_data, id_extend_imm, id_rd}),
-        //.data_out(id_ex_data_out)
-
-        .ctrl_in({id_alu_op, id_operand_A_sel, id_operand_B_sel, id_reg_write, id_pc}),
-        .ctrl_out(id_ex_ctrl_out),
-        .data_in({id_rs1_data, id_rs2_data, id_extend_imm, id_rd}),
-        .data_out(id_ex_data_out)
-    );
-
-    //assign {ex_alu_op, ex_alu_asrc, ex_alu_bsrc, ex_reg_write,ex_pc} = id_ex_ctrl_out;
-    //assign {ex_rs1_data, ex_rs2_data, ex_extend_imm, ex_rd} = id_ex_data_out;
-    
-    assign {ex_alu_op, ex_operand_A_sel, ex_operand_B_sel, ex_reg_write, ex_pc} = id_ex_ctrl_out;
-    assign {ex_rs1_data, ex_rs2_data, ex_extend_imm, ex_rd} = id_ex_data_out;
-
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            ex_funct7 <= 7'd0;
-            ex_funct3 <= 3'd0;
-        end else if (!stall) begin
-            ex_funct7 <= id_funct7;
-            ex_funct3 <= id_funct3;
+    // -------------------------------------------------------------------------
+    // Hazard Handling: Data Forwarding Unit (前向传递/旁路逻辑)
+    // -------------------------------------------------------------------------
+    // 修复后的前向传递逻辑 (CoreTop.sv)
+    always_comb begin
+        if (mem_ctrl_out.reg_write && (mem_ctrl_out.rd != 5'd0) && (mem_ctrl_out.rd == id_rs1)) begin
+            // 使用 wb_write_data，这样如果是 LW 指令能拿到 mem_rdata，如果是普通 ALU 指令能拿到 alu_result
+            forward_a_data = wb_write_data; 
+        end else begin
+            forward_a_data = id_rs1_data;
         end
     end
 
-    // ==========================================================================
-    // 5. Execution (EX) Stage
-    // ==========================================================================
+    always_comb begin
+        if (mem_ctrl_out.reg_write && (mem_ctrl_out.rd != 5'd0) && (mem_ctrl_out.rd == id_rs2)) begin
+            forward_b_data = wb_write_data;
+        end else begin
+            forward_b_data = id_rs2_data;
+        end
+    end
+
+    // 执行单元 (ALU) - 传入经过前向传递选择后的操作数
     execute #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH)
     ) u_execute (
-        .clk(clk),
-        .rst(rst),
-        .stall(stall),
-        .ALU_Operation(ex_alu_op),
-        .funct7(ex_funct7),
-        .funct3(ex_funct3),
-        //.ALU_ASrc(ex_alu_asrc),
-        //.ALU_BSrc(ex_alu_bsrc),
-        .ALU_ASrc(ex_operand_A_sel), // 修改这里，使用刚刚解包出的 ex_operand_A_sel
-        .ALU_BSrc(ex_operand_B_sel), // 修改这里，使用刚刚解包出的 ex_operand_B_sel
-        .PC(ex_pc),
-        .regRead_1(ex_rs1_data),
-        .regRead_2(ex_rs2_data),
-        .extend(ex_extend_imm),
-        
-        .ALU_result(ex_alu_result)
+        .clk           (clk),
+        .rst           (rst),
+        .stall         (stall),
+        .ALU_Operation (id_alu_op),
+        .funct7        (id_funct7),
+        .funct3        (id_funct3),
+        .ALU_ASrc      (id_operand_a),
+        .ALU_BSrc      (id_operand_b),
+        .PC            (id_pc),
+        .regRead_1     (forward_a_data),  // 使用旁路后的 rs1 数据
+        .regRead_2     (forward_b_data),  // 使用旁路后的 rs2 数据
+        .extend        (id_extend_imm),
+        .branch_op     (id_branch_op),
+
+        .ALU_result    (ex_alu_result),
+        .branch_taken  (ex_branch_taken),
+        .JALR_target   (ex_jalr_target)
+    );
+    
+
+    // 打包 EX/MEM 锁存控制信号与数据
+    assign id_ex_ctrl_in.reg_write  = id_reg_write;
+    assign id_ex_ctrl_in.mem_write  = id_mem_write;
+    assign id_ex_ctrl_in.mem_read   = id_mem_read;
+    assign id_ex_ctrl_in.mem_to_reg = id_mem_to_reg;
+    assign id_ex_ctrl_in.mem_wbe    = id_mem_wbe;
+    assign id_ex_ctrl_in.rd         = id_rd;
+
+    assign id_ex_data_in.alu_result = ex_alu_result;
+    assign id_ex_data_in.rs2_data   = forward_b_data; // 确保存储指令 (SW/SH/SB) 在写内存时也使用正确的旁路数据
+
+    // =========================================================================
+    // Pipeline Reg 2: EX / MEM
+    // =========================================================================
+    PipelineReg #(
+        .CTRL_WIDTH($bits(ex_mem_ctrl_t)),
+        .DATA_WIDTH($bits(ex_mem_data_t))
+    ) u_ex_mem_reg (
+        .clk      (clk),
+        .rst      (rst),
+        .flush    (1'b0),
+        .en       (!stall),
+        .ctrl_in  (id_ex_ctrl_in),
+        .ctrl_out (mem_ctrl_out),
+        .data_in  (id_ex_data_in),
+        .data_out (mem_data_out)
     );
 
-    // ==========================================================================
-    // 6. Connect Outputs to Monitor Interface
-    // ==========================================================================
-    // 当指令有效、未被 stall 且寄存器写使能有效时，输出写回监视
-    logic is_running;
-    assign monitor_valid = ex_reg_write && !stall && !rst;
-    assign monitor_pc    = ex_pc;
-    assign monitor_waddr = ex_rd;
-    assign monitor_wdata = ex_alu_result;
-    
-    assign is_running = !rst && (u_ifu.fetch || stall);
+    // =========================================================================
+    // 3. MEM / WB 阶段 (Memory Access & Writeback)
+    // =========================================================================
 
-    always_ff @(posedge clk) begin
-        if (is_running) begin
-            $display("\n======================= [COREX CYCLE @ %0t] =======================", $time);
-            $display("  [GLOBAL STATUS]  stall: %b | start: %b", stall, start);
-            $display("-----------------------------------------------------------------");
-            
-            // 1. IF 阶段监控
-            $display("  [IF Stage]  PC_reg(ifu): 0x%h | if_pc(output): 0x%h | inst: 0x%h | gnt: %b",
-                     u_ifu.PC_reg, if_pc, if_instruction, u_ifu.imem_gnt);
-            
-            // 2. IF/ID 寄存器输入与输出对比
-            $display("  [IF/ID Reg] In_PC: 0x%h -> Out_PC: 0x%h (En: %b)",
-                     if_pc, id_pc, !stall);
-            
-            // 3. ID 阶段监控 (译码出的指令信息)
-            $display("  [ID Stage]  id_pc: 0x%h | id_inst: 0x%h | opcode: 7'b%b | rd: d%0d",
-                     id_pc, id_instruction, id_opcode, id_rd);
-            $display("              regWrite_sel: %b | rs1_data: 0x%h | rs2_data: 0x%h | imm: 0x%h",
-                     id_reg_write, id_rs1_data, id_rs2_data, id_extend_imm);
+    // 数据存储器 (DMemTop)
+    DMemTop #(
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .INIT_FILE(DMEM_INIT_FILE)
+    ) u_dmem (
+        .clk   (clk),
+        .rst   (rst),
+        .read  (mem_ctrl_out.mem_read),
+        .write (mem_ctrl_out.mem_write),
+        .addr  (mem_data_out.alu_result),
+        .wdata (mem_data_out.rs2_data),
+        .wbe   (mem_ctrl_out.mem_wbe),
+        
+        .gnt   (dmem_gnt),
+        .rack  (dmem_rack),
+        .wack  (dmem_wack),
+        .err   (dmem_err),
+        .rdata (mem_rdata)
+    );
 
-            // 4. ID/EX 寄存器输入与输出对比
-            $display("  [ID/EX Reg] In_PC: 0x%h -> Out_PC: 0x%h (En: %b)",
-                     id_pc, ex_pc, !stall);
-
-            // 5. EX 阶段监控 (执行与写回结果)
-            $display("  [EX Stage]  ex_pc: 0x%h | alu_op: %b | rs1_val: 0x%h | rs2_val: 0x%h",
-                     ex_pc, ex_alu_op, ex_rs1_data, ex_rs2_data);
-            $display("              ALU_Result: 0x%h | ex_rd: d%0d | ex_reg_write: %b",
-                     ex_alu_result, ex_rd, ex_reg_write);
-
-            // 6. 最终写回 Monitor 监控
-            $display("  [MONITOR]   valid: %b | pc: 0x%h | waddr(rd): d%0d | wdata: 0x%h",
-                     monitor_valid, monitor_pc, monitor_waddr, monitor_wdata);
-            $display("=================================================================");
-        end
-    end
+    // 写回控制逻辑 (WB Multiplexer)
+    assign wb_reg_write  = mem_ctrl_out.reg_write;
+    assign wb_write_reg  = mem_ctrl_out.rd;
+    // 选择把内存读取结果还是 ALU 运算结果写回 RegFile
+    assign wb_write_data = mem_ctrl_out.mem_to_reg ? mem_rdata : mem_data_out.alu_result;
 
 endmodule

@@ -26,17 +26,16 @@ module ControlUnit #(
     input  logic [6:0] opcode,
 
     output logic [2:0] ALUOp,          // ALU operation class
-    output logic [1:0] operand_A,  // 00:rs1, 01:PC, 11:0
+    output logic [1:0] operand_A,  // 00:rs1, 01:PC, 10:PC+4, 11:0
     output logic       operand_B,  // 0:rs2, 1:imm
-    output logic [1:0] extend_sel,     
-    output logic       regWrite,        // Register write enable
+    output logic [2:0] extend_sel,     
+    output logic       regWrite,        //是否需要写寄存器
 
     output logic branch_op,
-    output logic memRead,//内存读写控制 dmemtop
-    output logic memWrite,
-    output logic memtoReg,
+    output logic memRead,//内存读使能 dmem
+    output logic memWrite,//内存写使能 dmem
+    output logic memtoReg,//内存读结果写入寄存器
     output logic [1:0] next_PC_sel
-
 );
 
     // Opcode definitions (Base RV32I arithmetic subset)
@@ -54,6 +53,7 @@ module ControlUnit #(
     localparam [6:0] SYSCALL = 7'b1110011;
 
     // Control signal assignments
+    //assign jump_flush = (opcode == 7'b1101111) || (opcode == 7'b1100111) ;   // JAL JALR 
     assign regWrite      = ((opcode == R_TYPE) | (opcode == I_TYPE) |(opcode == LOAD)
                             | (opcode == JALR) | (opcode == JAL) | 
                             (opcode == AUIPC)| (opcode == LUI))? 1 : 0;
@@ -72,10 +72,12 @@ module ControlUnit #(
     assign operand_B = ((opcode == I_TYPE) | (opcode == STORE)|
                            (opcode == LOAD) | (opcode == AUIPC) |
                            (opcode == LUI))? 1 : 0;
-    assign extend_sel    = ((opcode == I_TYPE)  | (opcode == LOAD))?  2'b00 :
-                           (opcode == STORE)?   2'b01  :
-                           ((opcode == AUIPC) | (opcode == LUI))? 2'b10 : 0;
-
+    assign extend_sel  = ((opcode == I_TYPE) | (opcode == LOAD) | (opcode == JALR)) ? 3'b000 :
+                         (opcode == STORE)  ? 3'b001 :
+                         (opcode == BRANCH) ? 3'b010 :
+                         ((opcode == AUIPC) | (opcode == LUI)) ? 3'b011 :
+                         (opcode == JAL)    ? 3'b100 : 3'b000;
+                         
     assign memWrite      = (opcode == STORE)?   1 : 0;
     assign branch_op     = (opcode == BRANCH)?  1 : 0;
     assign memRead       = (opcode == LOAD)?    1 : 0;

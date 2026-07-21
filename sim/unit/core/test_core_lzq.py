@@ -242,16 +242,16 @@ class TestCore_SV:
     @classmethod
     def setup_class(cls):
         sources = [
-            HDL_SV_DIR / "core" / "riscv_pkg.sv",
+            HDL_SV_DIR / "core" / "control_unit.sv",
             HDL_SV_DIR / "core" / "ibus_if.sv",
             HDL_SV_DIR / "core" / "dbus_if.sv",
             HDL_SV_DIR / "core" / "imem.sv",
             HDL_SV_DIR / "core" / "dmem.sv",
             HDL_SV_DIR / "core" / "reg_file.sv",
             HDL_SV_DIR / "core" / "pipeline_reg.sv",
-            HDL_SV_DIR / "core" / "idu.sv",
-            HDL_SV_DIR / "core" / "alu.sv",
-            HDL_SV_DIR / "core" / "exu.sv",
+            HDL_SV_DIR / "core" / "decoder.sv",
+            HDL_SV_DIR / "core" / "ALU.sv",
+            HDL_SV_DIR / "core" / "execute.sv",
             HDL_SV_DIR / "core" / "ifu.sv",
             HDL_SV_DIR / "core" / "core.sv",
         ]

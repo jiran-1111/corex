@@ -13,7 +13,7 @@ module ALU #(
     input  logic [DATA_WIDTH-1:0] alu_in_a,  
     input  logic [DATA_WIDTH-1:0] alu_in_b,   
     output logic [DATA_WIDTH-1:0] ALU_result,
-    output logic branch
+    output logic cmp_out
     //output logic zero   
 );
 
@@ -32,7 +32,7 @@ module ALU #(
     //assign zero   = (ALU_result==0);
     assign signed_greater_than_equal = DATA_WIDTH'($signed(alu_in_a) >= $signed(alu_in_b));
     // B型指令跳转条件是否满足
-    assign branch = (ALU_Control[4:3] == 2'b10) ? ALU_result[0] : 1'b0;
+    assign cmp_out = ALU_result[0];
     
 
     assign ALU_result =

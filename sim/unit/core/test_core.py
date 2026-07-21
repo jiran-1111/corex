@@ -318,8 +318,11 @@ class TestCorex_SV:
         HDL_SV_DIR / "core" / "imem.sv",
         HDL_SV_DIR / "core" / "pipeline_reg.sv",
         HDL_SV_DIR / "core" / "reg_file.sv",
+        HDL_SV_DIR / "core" / "dbus_if.sv",
+
+        HDL_SV_DIR / "core" / "dmem.sv",
     ]
-    hdl_top = "corex"
+    hdl_top = "CoreTop"
     
 
     def test_pipeline_flow(self):

@@ -36,10 +36,9 @@ module execute #(
     output logic [DATA_WIDTH-1:0] ALU_result,// Computation output
     output logic branch_taken,
     output logic [ADDR_WIDTH-1:0] JALR_target
-    //output logic zero
 );
     logic [5:0] ALU_Control;
-    logic ALU_branch;
+    logic alu_cmp_out;
     always_comb begin
         if ({ALU_Operation, funct7} == {3'b000, 7'b0000000}) begin
             // R-Type standard operations (ADD, SLL, SLT, SLTU, XOR, SRL, OR, AND)
@@ -75,9 +74,10 @@ module execute #(
         end
     end
 
-    assign branch_taken  = (ALU_branch & branch_op)? 1 : 0; 
+    assign branch_taken  = branch_op & alu_cmp_out;
     logic [DATA_WIDTH-1:0] alu_in_a;
     logic [DATA_WIDTH-1:0] alu_in_b;
+    
 
     // Mux for Operand A
     assign alu_in_a =  (ALU_ASrc == 2'b01) ? PC : 
@@ -87,9 +87,8 @@ module execute #(
 
     // Mux for Operand B
     assign alu_in_b = ALU_BSrc ? extend : regRead_2;
-    
 
-    assign JALR_target = ALU_result & 32'hffff_fffe;
+    assign JALR_target = (regRead_1 + extend) & 32'hffff_fffe;
 
     ALU #(
         .DATA_WIDTH(DATA_WIDTH)
@@ -99,7 +98,7 @@ module execute #(
         .alu_in_b  (alu_in_b), 
         .ALU_result (ALU_result),
         //.zero(zero), 
-        .branch(ALU_branch)
+        .cmp_out(alu_cmp_out)
     );
 
 endmodule

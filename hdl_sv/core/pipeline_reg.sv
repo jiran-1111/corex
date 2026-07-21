@@ -1,3 +1,11 @@
+/*
+ * COREX: Co-modeling RISC-V Example Core
+ * 
+ * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
+ * All rights reserved.
+ * 
+ * Author: Ran Ji
+ */
 /* COREX: Co-modeling RISC-V Example Core
  *
  * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
@@ -46,6 +54,7 @@ module PipelineReg #(
                 ctrl_q <= RESET_VALUE;
             end else if (en) begin
                 ctrl_q <= ctrl_in;
+
             end
         end
     end

@@ -51,6 +51,21 @@ module RegFile #(
             assign rdata2 = regs[raddr2];
         end
     endgenerate
+    /*
+    generate
+        if (ZERO_X0) begin : gen_zero_x0
+            // 如果读地址等于0，强制为0；如果读写地址相同且写使能有效，直接 Bypass 给出 wdata
+            assign rdata1 = (raddr1 == '0) ? '0 :
+                            (wen && (waddr == raddr1)) ? wdata : regs[raddr1];
+                            
+            assign rdata2 = (raddr2 == '0) ? '0 :
+                            (wen && (waddr == raddr2)) ? wdata : regs[raddr2];
+        end else begin : gen_writable_x0
+            assign rdata1 = (wen && (waddr == raddr1)) ? wdata : regs[raddr1];
+            assign rdata2 = (wen && (waddr == raddr2)) ? wdata : regs[raddr2];
+        end 
+    endgenerate
+    */
 
     always_ff @(posedge clk) begin
         if (rst) begin

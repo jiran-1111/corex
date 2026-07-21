@@ -31,7 +31,7 @@ async def setup_ifu_dut(dut, start_pc: int = 0x0000_0000):
     dut.JALR_target.value = 0
     dut.branch_target.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
 
     await ClockCycles(dut.clk, 1)
     dut.rst.value = 0
@@ -140,7 +140,7 @@ async def t_ifu_stall_long_duration(dut):
     assert is_pc_correct(dut, locked_pc)
 
     # Deassert stall signal
-    await RisingEdge(dut.clk)
+    await FallingEdge(dut.clk)
     dut.stall.value = 0
     await RisingEdge(dut.clk)
     
@@ -293,7 +293,7 @@ async def t_ifu_J_type(dut):
     
     dut.stall.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
     dut.JAL_target.value = 0
     dut.JALR_target.value = 0
 
@@ -353,7 +353,7 @@ async def t_ifu_J_type_real(dut):
     
     dut.stall.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
     dut.JAL_target.value = 0
     dut.JALR_target.value = 0
 
@@ -426,7 +426,7 @@ async def t_ifu_B_type(dut):
     
     dut.stall.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
     dut.branch_target.value = 0
 
     dut.start.value = 1
@@ -437,7 +437,7 @@ async def t_ifu_B_type(dut):
     # 步骤一：测试 BEQ 发生跳转
     # ========================================================
     dut.pc_sel_execute.value = 1  
-    dut.branch.value = 1          
+    dut.branch_taken.value = 1          
     dut.branch_target.value = 0x10
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
@@ -447,7 +447,7 @@ async def t_ifu_B_type(dut):
     
     
     dut.pc_sel_execute.value = 1
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
     await RisingEdge(dut.clk)
     await Timer(1, unit='ns')
     assert dut.inst_PC.value == 0x10, f"Branch target failed! Got {hex(int(dut.inst_PC.value))}"
@@ -468,7 +468,7 @@ async def t_ifu_R_type(dut):
     
     dut.stall.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
 
     dut.start.value = 1
     await RisingEdge(dut.clk)
@@ -501,7 +501,7 @@ async def t_ifu_I_type(dut):
     
     dut.stall.value = 0
     dut.pc_sel_execute.value = 0
-    dut.branch.value = 0
+    dut.branch_taken.value = 0
 
     dut.start.value = 1
     await RisingEdge(dut.clk)
@@ -527,7 +527,7 @@ class TestIfu_SV:
     sources = [
         HDL_SV_DIR / "core" / "ibus_if.sv",
         HDL_SV_DIR / "core" / "imem.sv",
-        HDL_SV_DIR / "core" / "ifu_new.sv",
+        HDL_SV_DIR / "core" / "ifu.sv",
     ]
     hdl_top = "Ifu"
         

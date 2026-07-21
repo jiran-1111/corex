@@ -24,7 +24,7 @@ async def setup_dut(dut):
     dut.regRead_1.value = 0
     dut.regRead_2.value = 0
     dut.extend.value = 0
-    dut.branch_op.value = 0  # 确保新增的 branch_op 信号默认关闭
+    dut.branch_op.value = 0  # 默认关闭分支使能
     await Timer(1, unit="ns")
 
 def to_unsigned(val, width):
@@ -41,7 +41,7 @@ def to_signed(val, width):
 
 @cocotb.test()
 async def t_execute_mux_A(dut):
-    """Test Case: Verifying Operand A Multiplexer (regRead_1 vs PC vs PC+4)"""
+    """Test Case: Verifying Operand A Multiplexer (regRead_1 vs PC vs PC+4 vs ZERO)"""
     await setup_dut(dut)
     
     dut.ALU_Operation.value = 0b001  # I-Type (pass-through / ADDI behavior)
@@ -66,6 +66,11 @@ async def t_execute_mux_A(dut):
     dut.ALU_ASrc.value = 0b10
     await Timer(1, unit="ns")
     assert dut.ALU_result.value == 0x1000_0004
+
+    # 4. ALU_ASrc = 11 -> Select 0 (LUI 特性)
+    dut.ALU_ASrc.value = 0b11
+    await Timer(1, unit="ns")
+    assert dut.ALU_result.value == 0x0000_0000
 
 
 @cocotb.test()
@@ -94,27 +99,31 @@ async def t_execute_mux_B(dut):
 
 @cocotb.test()
 async def t_execute_random_ops(dut):
-    """Test Case: Integrated Random Operations and Mux Logic Routing (Arithmetic/Logic)"""
+    """Test Case: Integrated Random Operations and Mux Logic Routing (Arithmetic/Logic/Shift/Compare)"""
     await setup_dut(dut)
     data_width = int(dut.DATA_WIDTH.value)
     addr_width = int(dut.ADDR_WIDTH.value)
 
     op_combinations = [
-        # (ALU_Op, f3, f7, is_shift)
-        (0b000, 0b000, 0b0000000, False),  # ADD (R-Type)
-        (0b000, 0b000, 0b0100000, False),  # SUB (R-Type)
-        (0b000, 0b100, 0b0000000, False),  # XOR (R-Type)
-        (0b000, 0b110, 0b0000000, False),  # OR  (R-Type)
-        (0b000, 0b111, 0b0000000, False),  # AND (R-Type)
-        (0b001, 0b000, 0b0000000, False),  # ADDI (I-Type)
-        (0b001, 0b100, 0b0000000, False),  # XORI (I-Type)
-        (0b000, 0b001, 0b0000000, True),   # SLL (R-Type Shift)
-        (0b001, 0b101, 0b0000000, True),   # SRLI (I-Type Shift)
-        (0b001, 0b101, 0b0100000, True)    # SRAI (I-Type Shift)
+        # (ALU_Op, f3, f7)
+        (0b000, 0b000, 0b0000000),  # ADD (R-Type)
+        (0b000, 0b000, 0b0100000),  # SUB (R-Type)
+        (0b000, 0b010, 0b0000000),  # SLT (R-Type)
+        (0b000, 0b011, 0b0000000),  # SLTU (R-Type)
+        (0b000, 0b100, 0b0000000),  # XOR (R-Type)
+        (0b000, 0b110, 0b0000000),  # OR  (R-Type)
+        (0b000, 0b111, 0b0000000),  # AND (R-Type)
+        (0b001, 0b000, 0b0000000),  # ADDI (I-Type)
+        (0b001, 0b010, 0b0000000),  # SLTI (I-Type)
+        (0b001, 0b011, 0b0000000),  # SLTIU (I-Type)
+        (0b001, 0b100, 0b0000000),  # XORI (I-Type)
+        (0b000, 0b001, 0b0000000),  # SLL (R-Type Shift)
+        (0b001, 0b101, 0b0000000),  # SRLI (I-Type Shift)
+        (0b001, 0b101, 0b0100000)   # SRAI (I-Type Shift)
     ]
 
     for _ in range(150):
-        alu_op, f3, f7, is_shift = random.choice(op_combinations)
+        alu_op, f3, f7 = random.choice(op_combinations)
         
         val_reg1 = random.randint(0, (1 << data_width) - 1)
         val_reg2 = random.randint(0, (1 << data_width) - 1)
@@ -138,16 +147,23 @@ async def t_execute_random_ops(dut):
         
         await Timer(1, unit="ns")
 
-        expected_A = val_pc if asrc == 0b01 else (val_pc + 4 if asrc == 0b10 else val_reg1)
+        expected_A = val_pc if asrc == 0b01 else (val_pc + 4 if asrc == 0b10 else (0 if asrc == 0b11 else val_reg1))
         expected_B = val_ext if bsrc == 1 else val_reg2
 
         shamt_width = (data_width).bit_length() - 1
         shamt = expected_B & ((1 << shamt_width) - 1)
 
+        s_a = to_signed(expected_A, data_width)
+        s_b = to_signed(expected_B, data_width)
+
         if (alu_op, f7) == (0b000, 0b0000000) and f3 == 0b000:    # ADD
             expected_res = expected_A + expected_B
         elif (alu_op, f7) == (0b000, 0b0100000) and f3 == 0b000:  # SUB
             expected_res = expected_A - expected_B
+        elif f3 == 0b010:                                         # SLT / SLTI
+            expected_res = 1 if s_a < s_b else 0
+        elif f3 == 0b011:                                         # SLTU / SLTIU
+            expected_res = 1 if expected_A < expected_B else 0
         elif f3 == 0b100:                                         # XOR / XORI
             expected_res = expected_A ^ expected_B
         elif f3 == 0b110:                                         # OR / ORI
@@ -156,10 +172,10 @@ async def t_execute_random_ops(dut):
             expected_res = expected_A & expected_B
         elif f3 == 0b001:                                         # SLL / SLLI
             expected_res = expected_A << shamt
-        elif (alu_op, f3, f7) == (0b001, 0b101, 0b0000000) or (alu_op, f3, f7) == (0b000, 0b101, 0b0000000): # SRL / SRLI
+        elif f3 == 0b101 and f7 == 0b0000000:                     # SRL / SRLI
             expected_res = expected_A >> shamt
-        elif (alu_op, f3, f7) == (0b001, 0b101, 0b0100000) or (alu_op, f3, f7) == (0b000, 0b101, 0b0100000): # SRA / SRAI
-            expected_res = to_signed(expected_A, data_width) >> shamt
+        elif f3 == 0b101 and f7 == 0b0100000:                     # SRA / SRAI
+            expected_res = s_a >> shamt
         else:
             expected_res = expected_A + expected_B
 
@@ -219,14 +235,27 @@ async def t_execute_branch_ops(dut):
             await Timer(1, unit="ns")
             assert dut.branch_taken.value == 0, f"Failed {name} safety lock: branch_op=0 but branch_taken=1!"
 
-    # 测试 JAL / JALR 旁路路由 (ALU_Operation = 3'b011)
-    dut.ALU_Operation.value = 0b011
-    dut.ALU_ASrc.value = 0b10        # 此时硬件选择 PC+4 
+
+@cocotb.test()
+async def t_execute_jalr_target(dut):
+    """Test Case: Verifying JALR target address calculation and bit0 clearing"""
+    await setup_dut(dut)
+    
+    # 设置测试数据（带有奇数地址，校验 bit[0] 清零特性）
+    dut.regRead_1.value = 0x1000_0003  # 最低位为 1
+    dut.extend.value    = 0x0000_0005  # 最低位为 1
+    # 期望结果: (0x1000_0003 + 0x0000_0005) & ~1 = 0x1000_0008 & ~1 = 0x1000_0008
+    
+    dut.ALU_Operation.value = 0b011  # JAL / JALR
+    dut.ALU_ASrc.value = 0b10        # 写回 rd 的内容选择 PC+4
     dut.PC.value = 0x2000_0000
-    dut.branch_op.value = 0          # J型跳转不需要设置 branch_op
+    
     await Timer(1, unit="ns")
-    assert dut.ALU_result.value == 0x2000_0004, "JAL/JALR logic failed to pass through PC+4"
-    assert dut.branch_taken.value == 0, "JAL/JALR should not assert branch_taken output directly via B-unit"
+    
+    # 1. 验证写回寄存器的 ALU 输出为 PC+4
+    assert dut.ALU_result.value == 0x2000_0004, f"JAL/JALR ALU Output failed, got {hex(dut.ALU_result.value)}"
+    # 2. 验证 JALR 计算出的跳转目标地址是否清除了最低位
+    assert dut.JALR_target.value == 0x1000_0008, f"JALR target calculation failed, got {hex(dut.JALR_target.value)}"
 
 
 class TestExecute_SV:
@@ -243,7 +272,8 @@ class TestExecute_SV:
             "t_execute_mux_A",
             "t_execute_mux_B",
             "t_execute_random_ops",
-            "t_execute_branch_ops" # 引入新的分支测试集
+            "t_execute_branch_ops",
+            "t_execute_jalr_target"  # 新增的 JALR 地址校验测试点
         ]
         runner = setup_runner(
             sources=self.sources,

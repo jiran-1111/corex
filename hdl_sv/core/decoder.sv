@@ -15,9 +15,9 @@ module Decoder #(
     input  logic                   rst,
     input  logic [DATA_WIDTH-1:0]  instruction,
     // PC用于跳转
-    input logic [ADDR_WIDTH-1:0] PC,
+    input logic [ADDR_WIDTH-1:0]   PC,
 
-    input  logic [1:0]             extend_sel,  
+    input  logic [2:0]             extend_sel,  
     input  logic                   reg_write,   // WB stage write enable
     input  logic [4:0]             write_reg,   // WB stage rd address
     input  logic [DATA_WIDTH-1:0]  write_data,  // WB stage write data
@@ -69,32 +69,32 @@ module Decoder #(
     assign funct7 = instruction[31:25];
     
     assign i_imm_orig = instruction[31:20];  
-    assign u_imm = instruction[31:12];
+    assign u_imm      = instruction[31:12];
 
-    // s uj sb extraction
-    assign s_imm_msb = instruction[31:25];
-    assign s_imm_lsb = instruction[11:7];
-    assign uj_imm = {instruction[31],instruction[19:12],instruction[20],instruction[30:21]};
-    assign s_imm_orig = {s_imm_msb,s_imm_lsb};
-    assign sb_imm_orig = {s_imm_msb[6],s_imm_lsb[0],s_imm_msb[5:0],s_imm_lsb[4:1],1'b0};
+    // S, B, J Type immediate extraction
+    assign s_imm_msb   = instruction[31:25];
+    assign s_imm_lsb   = instruction[11:7];
+    assign s_imm_orig  = {s_imm_msb, s_imm_lsb};
+    assign sb_imm_orig = {s_imm_msb[6], s_imm_lsb[0], s_imm_msb[5:0], s_imm_lsb[4:1], 1'b0};
 
-    assign i_imm_32 = {{20{i_imm_orig[11]}}, i_imm_orig}; // 12-bit sign extension
-    assign u_imm_32   = {u_imm, 12'b0};                    // 20-bit upper layout
-    assign s_imm_32 = {{20{s_imm_orig[11]}},s_imm_orig};
+    // Immediate Sign-Extension Calculations
+    assign i_imm_32  = {{20{i_imm_orig[11]}}, i_imm_orig};     // I-Type
+    assign s_imm_32  = {{20{s_imm_orig[11]}}, s_imm_orig};     // S-Type
+    assign sb_imm_32 = {{19{sb_imm_orig[12]}}, sb_imm_orig};   // B-Type
+    assign u_imm_32  = {u_imm, 12'b0};                         // U-Type
+    assign uj_imm_32 = {{12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0}; // J-Type
 
-    assign extend_imm = (extend_sel == 2'b01)? s_imm_32 : 
-                        (extend_sel == 2'b10)? u_imm_32 : i_imm_32;
 
-    // 跳转和分支地址BEQ
-    assign sb_imm_32 = {{19{sb_imm_orig[12]}},sb_imm_orig};
+    // 3'b000: I-Type, 3'b001: S-Type, 3'b010: B-Type, 3'b011: U-Type, 3'b100: J-Type
+    assign extend_imm = (extend_sel == 3'b001) ? s_imm_32  :
+                        (extend_sel == 3'b010) ? sb_imm_32 :
+                        (extend_sel == 3'b011) ? u_imm_32  :
+                        (extend_sel == 3'b100) ? uj_imm_32 :
+                                                 i_imm_32;
+
     assign branch_target = PC+sb_imm_32;
-    //assign uj_imm_32 = { {12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0 };
-
-    //assign uj_imm_32 = {{11{uj_imm[19]}},uj_imm[19:0],1'b0};
-    // 推荐的、不易出错的一步到位 J-Type 符号扩展写法：
-    assign uj_imm_32 = {{12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0};
-
     assign JAL_target = uj_imm_32 + PC;
+
     //assign JALR_target = (rs1_data + i_imm_32) & 32'hffff_fffe;
     assign rs1_data_bypass = (rs1 == write_reg) && reg_write && (rs1 != 5'd0);
     assign rs2_data_bypass = (rs2 == write_reg) && reg_write && (rs2 != 5'd0);
@@ -103,7 +103,7 @@ module Decoder #(
     assign rs2_data = (rs2_data_bypass == 0) ? rs2_data_decode: write_data;                
     
     always_comb begin
-        if(opcode == 7'b0100011)
+        if(opcode == 7'b0100011) 
             case (funct3)
                     3'b000:  mem_wbe = 4'b0001; // SB (Store Byte) -> 默认写最低字节
                     3'b001:  mem_wbe = 4'b0011; // SH (Store Half-word) -> 默认写低半字
@@ -114,8 +114,8 @@ module Decoder #(
     end
     // Register File instantiation
     RegFile #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .SEL_WIDTH(5)
+        .REG_DATA_WIDTH(DATA_WIDTH),
+        .REG_SEL_WIDTH(5)
     ) u_regfile (
         .clk(clk),
         .rst(rst),
