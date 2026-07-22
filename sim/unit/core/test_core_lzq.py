@@ -215,6 +215,7 @@ async def t_core_alu_stall_and_redirect(dut):
 
     await run_cycles(dut, 60)
 
+
     assert read_reg(dut, 1) == 5
     assert read_reg(dut, 2) == 12
     assert read_reg(dut, 3) == 17
@@ -279,7 +280,7 @@ class TestCore_SV:
             HDL_SV_DIR / "core" / "ALU.sv",
             HDL_SV_DIR / "core" / "execute.sv",
             HDL_SV_DIR / "core" / "ifu.sv",
-            HDL_SV_DIR / "core" / "core_new.sv",
+            HDL_SV_DIR / "core" / "core.sv"
         ]
         cls.hdl_top = "CoreTop"
         cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)

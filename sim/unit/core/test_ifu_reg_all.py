@@ -151,7 +151,7 @@ class TestCore_SV:
         sources = [
             HDL_SV_DIR / "core" / "imem.sv",
             HDL_SV_DIR / "core" / "pipeline_reg.sv",
-            HDL_SV_DIR / "core" / "core_new.sv",
+            HDL_SV_DIR / "core" / "core.sv",
             HDL_SV_DIR / "core" / "ifu.sv",
             HDL_SV_DIR / "core" / "ibus_if.sv"
         ]
