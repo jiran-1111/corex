@@ -169,8 +169,8 @@ module CoreTop #(
     ) u_if_id_reg (
         .clk      (clk),
         .rst      (rst),
-        .flush    (real_if_id_flush),
-        //.flush    (flush),
+        //.flush    (real_if_id_flush),
+        .flush    (flush),
         .en       (!stall),
         .ctrl_in  (if_valid),
         .ctrl_out (id_valid),

@@ -32,11 +32,11 @@ module Ifu #(
 
     logic [ADDR_WIDTH-1:0] next_PC;
 
+
     logic imem_gnt;
     logic imem_err; // err一直为0
     logic fetch;    // 指令读取使能，表示IFU正在请求Instruction Memory取指
     logic jump_or_branch_taken; // 用于判断是否需要更新 PC
-
 
 
     assign PC_plus4 = PC_reg + 4; 
