@@ -1,11 +1,3 @@
-/*
- * @COREX: Co-modeling RISC-V Example Core
- * 
- * Copyright (C) 2026 Microprocessor R&D Center (MPRC), Peking University
- * All rights reserved.
- * 
- * @Author: Ran Ji
- */
 int main() {
     int arr[8];
     arr[0] = 64; arr[1] = 34; arr[2] = 25; arr[3] = 12;

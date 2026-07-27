@@ -96,7 +96,7 @@ module Decoder #(
     assign JAL_target = uj_imm_32 + PC;
 
     //assign JALR_target = (rs1_data + i_imm_32) & 32'hffff_fffe;
-    assign rs1_data_bypass = (rs1 == write_reg) && reg_write && (rs1 != 5'd0);
+    assign rs1_data_bypass = (rs1 == write_reg) && (write_reg != 5'd0) && reg_write && (rs1 != 5'd0);
     assign rs2_data_bypass = (rs2 == write_reg) && reg_write && (rs2 != 5'd0);
 
     assign rs1_data = (rs1_data_bypass == 0) ? rs1_data_decode: write_data;

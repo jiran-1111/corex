@@ -91,6 +91,7 @@ module DMemTop #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
     parameter int SIZE_BYTES = 16384,
+    //parameter int SIZE_BYTES = 32768,
     parameter string INIT_FILE = "",
     localparam int BYTES_PER_WORD = DATA_WIDTH / 8
 ) (

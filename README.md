@@ -1,37 +1,8 @@
-## corex
+# corex
 
-### setup
+该项目实现了一个RV32I指令的三级流水线，通过cocotb和c语言程序进行测试。
 
-```bash
-# Ubuntu22.04
-
-# install dependencies
-sudo apt update
-sudo apt install git help2man perl python3 make g++ flex bison ccache autoconf 
-sudo apt install libfl2 libfl-dev zlib1g zlib1g-dev liblz4-dev
-
-# install cocotb / pytest
-python3 -m pip install cocotb pytest
-
-# install verilator-v5.040
-git clone https://github.com/verilator/verilator.git
-cd verilator
-git checkout v5.040
-autoconf
-./configure
-make -j$(nproc)
-sudo make install
-cd ..
-
-# run test
-# clone corex here
-cd corex
-SIM=verilator python3 -m pytest -q sim/unit/core/test_my_module.py
-SIM=verilator python3 -m pytest -v sim/unit/core/test_imem.py //显示详细信息
-# xxx passed in xxx s
-```
-
-my_env
+## setup-conda环境
 
 ```bash
 # Ubuntu22.04
@@ -67,16 +38,60 @@ SIM=verilator python3 -m pytest -v sim/unit/core/test_imem.py //显示详细信�
 SIM=verilator python3 -m pytest -v -s sim/unit/core/test_decoder.py
 ```
 
+
+## 文件结构
+
 ```
-- HDL 设计在 hdl_sv
- 目前只有 3 个核心文件：
-- ibus_if.sv ：指令总线接口定义（req/addr → gnt/ack/err/rdata）
-- imem.sv ：指令存储器 IMem（只读 RAM）+ 单元测试用的顶层 IMemTop
-- pipeline_reg.sv ：通用流水寄存器模块（控制/数据分离）
-- 测试在 sim/unit
-- cocotb_utils.py ：统一的“编译/构建/运行仿真”的封装（用 cocotb_tools.runner）
-- test_imem.py ：IMem 的所有单元测试
-- verilator/ ：仓库里直接带了一份 Verilator 源码（方便固定版本/离线使用）
-- sim_build/ ：仿真构建产物输出目录（runner.build 生成）
-- README ：环境安装与跑测试的命令在 README.md
+.
+├── README.md
+├── cspell.json
+├── docs                   # 文档 流水线结构图
+├── hdl_sv
+│   └── core               # 流水线设计部分
+├── my_c_test              # c语言测试部分
+│   ├── Makefile
+│   ├── README.md
+│   ├── __pycache__
+│   ├── bsp                # 汇编入口 链接脚本
+│   ├── build
+│   ├── cocotb_utils.py
+│   ├── src                # c语言源文件  
+│   ├── sim_build
+│   └── testcases          # 测试用例
+├── sim
+│   └── unit
+│       └── core           # 流水线cocotb测试部分
+├── sim_build
+└── verilator              # verilator编译部分
 ```
+
+## 测试
+
+### 1、cocotb测试
+```bash
+conda activate corex_env
+SIM=verilator python3 -m pytest -v -s sim/unit/core/test_decoder.py
+```
+较为重要的测试
+
+- test_core_lzq
+
+### 2、c语言测试
+```bash
+cd ~/pku_workspace/corex/my_c_test
+make run-all 
+make clean
+make TEST=adder
+make run TEST=adder
+```
+
+可以通过的测试
+
+- adder
+- binary_search
+- cec32
+- factorial
+- fibonacci
+- jar
+- sort
+- sum
