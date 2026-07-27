@@ -6,4 +6,3 @@ _start:
     call main            # 跳转执行 C 语言 main 函数
 _loop:
     j _loop              # main 函数返回后死循环停机
-    

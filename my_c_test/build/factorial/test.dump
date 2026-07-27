@@ -6,79 +6,102 @@ Disassembly of section .text:
 
 00000000 <_start>:
    0:	00001137          	lui	sp,0x1
-   4:	80010113          	addi	sp,sp,-2048 # 800 <call_count+0x70c>
-   8:	0a8000ef          	jal	ra,b0 <main>
+   4:	80010113          	addi	sp,sp,-2048 # 800 <call_count+0x6b0>
+   8:	0e0000ef          	jal	ra,e8 <main>
 
 0000000c <_loop>:
    c:	0000006f          	j	c <_loop>
 
 00000010 <multiply>:
-  10:	ff010113          	addi	sp,sp,-16
-  14:	00a12623          	sw	a0,12(sp)
-  18:	00b12423          	sw	a1,8(sp)
-  1c:	00812783          	lw	a5,8(sp)
-  20:	00000513          	li	a0,0
-  24:	02f05c63          	blez	a5,5c <multiply+0x4c>
-  28:	00812783          	lw	a5,8(sp)
-  2c:	0017f793          	andi	a5,a5,1
-  30:	00078663          	beqz	a5,3c <multiply+0x2c>
-  34:	00c12783          	lw	a5,12(sp)
-  38:	00f50533          	add	a0,a0,a5
-  3c:	00c12783          	lw	a5,12(sp)
-  40:	00179793          	slli	a5,a5,0x1
-  44:	00f12623          	sw	a5,12(sp)
-  48:	00812783          	lw	a5,8(sp)
-  4c:	4017d793          	srai	a5,a5,0x1
-  50:	00f12423          	sw	a5,8(sp)
-  54:	00812783          	lw	a5,8(sp)
-  58:	fcf048e3          	bgtz	a5,28 <multiply+0x18>
-  5c:	01010113          	addi	sp,sp,16
-  60:	00008067          	ret
+  10:	fd010113          	addi	sp,sp,-48
+  14:	02812623          	sw	s0,44(sp)
+  18:	03010413          	addi	s0,sp,48
+  1c:	fca42e23          	sw	a0,-36(s0)
+  20:	fcb42c23          	sw	a1,-40(s0)
+  24:	fe042623          	sw	zero,-20(s0)
+  28:	0380006f          	j	60 <multiply+0x50>
+  2c:	fd842783          	lw	a5,-40(s0)
+  30:	0017f793          	andi	a5,a5,1
+  34:	00078a63          	beqz	a5,48 <multiply+0x38>
+  38:	fdc42783          	lw	a5,-36(s0)
+  3c:	fec42703          	lw	a4,-20(s0)
+  40:	00f707b3          	add	a5,a4,a5
+  44:	fef42623          	sw	a5,-20(s0)
+  48:	fdc42783          	lw	a5,-36(s0)
+  4c:	00179793          	slli	a5,a5,0x1
+  50:	fcf42e23          	sw	a5,-36(s0)
+  54:	fd842783          	lw	a5,-40(s0)
+  58:	4017d793          	srai	a5,a5,0x1
+  5c:	fcf42c23          	sw	a5,-40(s0)
+  60:	fd842783          	lw	a5,-40(s0)
+  64:	fcf044e3          	bgtz	a5,2c <multiply+0x1c>
+  68:	fec42783          	lw	a5,-20(s0)
+  6c:	00078513          	mv	a0,a5
+  70:	02c12403          	lw	s0,44(sp)
+  74:	03010113          	addi	sp,sp,48
+  78:	00008067          	ret
 
-00000064 <factorial>:
-  64:	0f402783          	lw	a5,244(zero) # f4 <call_count>
-  68:	00178793          	addi	a5,a5,1
-  6c:	0ef02a23          	sw	a5,244(zero) # f4 <call_count>
-  70:	00100793          	li	a5,1
-  74:	02a7da63          	bge	a5,a0,a8 <factorial+0x44>
-  78:	ff010113          	addi	sp,sp,-16
-  7c:	00812423          	sw	s0,8(sp)
-  80:	00050413          	mv	s0,a0
-  84:	fff50513          	addi	a0,a0,-1
-  88:	00112623          	sw	ra,12(sp)
-  8c:	fd9ff0ef          	jal	ra,64 <factorial>
-  90:	00050593          	mv	a1,a0
-  94:	00040513          	mv	a0,s0
-  98:	00812403          	lw	s0,8(sp)
-  9c:	00c12083          	lw	ra,12(sp)
-  a0:	01010113          	addi	sp,sp,16
-  a4:	f6dff06f          	j	10 <multiply>
-  a8:	00100513          	li	a0,1
-  ac:	00008067          	ret
+0000007c <factorial>:
+  7c:	fe010113          	addi	sp,sp,-32
+  80:	00112e23          	sw	ra,28(sp)
+  84:	00812c23          	sw	s0,24(sp)
+  88:	02010413          	addi	s0,sp,32
+  8c:	fea42623          	sw	a0,-20(s0)
+  90:	15002783          	lw	a5,336(zero) # 150 <call_count>
+  94:	00178713          	addi	a4,a5,1
+  98:	14e02823          	sw	a4,336(zero) # 150 <call_count>
+  9c:	fec42703          	lw	a4,-20(s0)
+  a0:	00100793          	li	a5,1
+  a4:	00e7c663          	blt	a5,a4,b0 <factorial+0x34>
+  a8:	00100793          	li	a5,1
+  ac:	0280006f          	j	d4 <factorial+0x58>
+  b0:	fec42783          	lw	a5,-20(s0)
+  b4:	fff78793          	addi	a5,a5,-1
+  b8:	00078513          	mv	a0,a5
+  bc:	fc1ff0ef          	jal	ra,7c <factorial>
+  c0:	00050793          	mv	a5,a0
+  c4:	00078593          	mv	a1,a5
+  c8:	fec42503          	lw	a0,-20(s0)
+  cc:	f45ff0ef          	jal	ra,10 <multiply>
+  d0:	00050793          	mv	a5,a0
+  d4:	00078513          	mv	a0,a5
+  d8:	01c12083          	lw	ra,28(sp)
+  dc:	01812403          	lw	s0,24(sp)
+  e0:	02010113          	addi	sp,sp,32
+  e4:	00008067          	ret
 
-000000b0 <main>:
-  b0:	fe010113          	addi	sp,sp,-32
-  b4:	00600793          	li	a5,6
-  b8:	00f12623          	sw	a5,12(sp)
-  bc:	00c12503          	lw	a0,12(sp)
-  c0:	00112e23          	sw	ra,28(sp)
-  c4:	fa1ff0ef          	jal	ra,64 <factorial>
-  c8:	000017b7          	lui	a5,0x1
-  cc:	00a7a023          	sw	a0,0(a5) # 1000 <call_count+0xf0c>
-  d0:	0f402703          	lw	a4,244(zero) # f4 <call_count>
-  d4:	01c12083          	lw	ra,28(sp)
-  d8:	00000513          	li	a0,0
-  dc:	00e7a223          	sw	a4,4(a5)
-  e0:	000027b7          	lui	a5,0x2
-  e4:	00100713          	li	a4,1
-  e8:	00e7a023          	sw	a4,0(a5) # 2000 <call_count+0x1f0c>
-  ec:	02010113          	addi	sp,sp,32
-  f0:	00008067          	ret
+000000e8 <main>:
+  e8:	fe010113          	addi	sp,sp,-32
+  ec:	00112e23          	sw	ra,28(sp)
+  f0:	00812c23          	sw	s0,24(sp)
+  f4:	02010413          	addi	s0,sp,32
+  f8:	00600793          	li	a5,6
+  fc:	fef42423          	sw	a5,-24(s0)
+ 100:	fe842783          	lw	a5,-24(s0)
+ 104:	00078513          	mv	a0,a5
+ 108:	f75ff0ef          	jal	ra,7c <factorial>
+ 10c:	fea42623          	sw	a0,-20(s0)
+ 110:	000017b7          	lui	a5,0x1
+ 114:	fec42703          	lw	a4,-20(s0)
+ 118:	00e7a023          	sw	a4,0(a5) # 1000 <call_count+0xeb0>
+ 11c:	000017b7          	lui	a5,0x1
+ 120:	00478793          	addi	a5,a5,4 # 1004 <call_count+0xeb4>
+ 124:	15002703          	lw	a4,336(zero) # 150 <call_count>
+ 128:	00e7a023          	sw	a4,0(a5)
+ 12c:	000027b7          	lui	a5,0x2
+ 130:	00100713          	li	a4,1
+ 134:	00e7a023          	sw	a4,0(a5) # 2000 <call_count+0x1eb0>
+ 138:	00000793          	li	a5,0
+ 13c:	00078513          	mv	a0,a5
+ 140:	01c12083          	lw	ra,28(sp)
+ 144:	01812403          	lw	s0,24(sp)
+ 148:	02010113          	addi	sp,sp,32
+ 14c:	00008067          	ret
 
 Disassembly of section .sbss:
 
-000000f4 <call_count>:
-  f4:	0000                	unimp
+00000150 <call_count>:
+ 150:	0000                	unimp
 	...
 
 Disassembly of section .riscv.attributes:
@@ -104,7 +127,7 @@ Disassembly of section .comment:
    0:	3a434347          	fmsub.d	ft6,ft6,ft4,ft7,rmm
    4:	2820                	fld	fs0,80(s0)
    6:	2029                	jal	10 <multiply>
-   8:	3031                	jal	fffff814 <call_count+0xfffff720>
+   8:	3031                	jal	fffff814 <call_count+0xfffff6c4>
    a:	322e                	fld	ft4,232(sp)
    c:	302e                	fld	ft0,232(sp)
 	...

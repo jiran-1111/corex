@@ -10,7 +10,7 @@ BSP_DIR   := bsp
 SRC_DIR   := src/$(TEST)
 BUILD_DIR := build/$(TEST)
 
-CFLAGS    := -march=rv32i -mabi=ilp32 -O2 -nostdlib -T $(BSP_DIR)/link.ld -I $(BSP_DIR)
+CFLAGS    := -march=rv32i -mabi=ilp32 -O0 -nostdlib -T $(BSP_DIR)/link.ld -I $(BSP_DIR)
 
 TARGET_ELF := $(BUILD_DIR)/test.elf
 TARGET_HEX := $(BUILD_DIR)/test.hex
