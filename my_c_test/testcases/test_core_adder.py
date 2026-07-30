@@ -10,12 +10,37 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
+# 导入 cocotb-coverage 模块
+from cocotb_coverage.coverage import CoverPoint, CoverCross, coverage_db
+from cocotb_coverage.coverage import coverage_db
 # 导入上一级目录中的通用辅助工具
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from cocotb_utils import CLK_PERIOD_NS, HDL_SV_DIR, Runner, setup_runner,collect_coverage
+from cocotb_utils import CLK_PERIOD_NS, HDL_SV_DIR, Runner, setup_runner, collect_coverage
 
 NOP = 0x00000013 # addi x0, x0, 0
+
+# ==============================================================================
+# 1. 定义功能覆盖率模型 (Functional Coverage Model)
+# ==============================================================================
+@CoverPoint(
+    "top.dmem.read_result",
+    xf=lambda idx, val: "ZERO" if val == 0 else ("EXPECTED_8" if val == 8 else "OTHER"),
+    bins=["ZERO", "EXPECTED_8", "OTHER"]
+)
+@CoverPoint(
+    "top.dmem.read_index",
+    xf=lambda idx, val: f"ADDR_0x{idx*4:03X}",
+    bins=["ADDR_0x100", "OTHER_ADDR"]
+)
+@CoverCross(
+    "top.dmem.result_x_addr",
+    items=["top.dmem.read_result", "top.dmem.read_index"]
+)
+def sample_dmem_coverage(index: int, value: int):
+    """采样函数：当从 DMEM 读取计算结果时触发采样"""
+    pass
+
 
 def load_hex_file(filepath):
     """
@@ -57,9 +82,19 @@ def fill_mem(dut, words: list[int]):
         
     dut._log.info(f"Successfully loaded {len(words)} instructions into IMem.")
 
+
+    # ==========================================================================
+    # 2. 采样功能覆盖率
+    # ==========================================================================
+
 def read_dmem(dut, index: int) -> int:
     """读取 DMem 内部指定字（Word）索引的数据。"""
-    return int(dut.u_dmem.dmem.mem[index].value)
+    val = int(dut.u_dmem.dmem.mem[index].value)
+    
+    # 转换为位置参数传递：依次传入 index 和 val
+    sample_dmem_coverage(index, val)  # ✅ 修改这里
+    
+    return val
 
 async def clock_tick(dut):
     await RisingEdge(dut.clk)
@@ -88,7 +123,6 @@ async def setup_dut(dut, start_pc: int = 0):
 @cocotb.test()
 async def t_core_c_add_test(dut):
     """运行 C 语言编译出的加法测试 test.hex 并验证结果"""
-    # 动态获取对应的 build/adder/test.hex 路径
     TEST_DIR = Path(__file__).parent.parent
     hex_path = TEST_DIR / "build" / "adder" / "test.hex"
     
@@ -106,6 +140,17 @@ async def t_core_c_add_test(dut):
     else:
         assert False, f"Test timeout! Expected 8 at address 0x100, got {read_dmem(dut, index=0x100 // 4)}"
 
+    # ==========================================================================
+    # 3. 导出并打印功能覆盖率报告
+    # ==========================================================================
+    dut._log.info("\n" + "="*50 + "\nFunctional Coverage Summary\n" + "="*50)
+    #coverage_db.report_detailed(print_xml=False)
+    coverage_db.report_coverage(cocotb.log.info, bins=True)
+    # 导出一份 XML 文件便于后期汇总或统计
+    xml_out = TEST_DIR / "build" / "coverage" / "functional_coverage_adder.xml"
+    xml_out.parent.mkdir(parents=True, exist_ok=True)
+    coverage_db.export_to_xml(str(xml_out))
+
 class TestCore_SV:
     """Test the minimal three-stage core."""
 
@@ -114,7 +159,6 @@ class TestCore_SV:
 
     @classmethod
     def setup_class(cls):
-        # 注意：脚本现在在 testcases/ 目录下，向上两级到达项目根目录
         COREX_ROOT = Path(__file__).parent.parent.parent
         hdl_dir = COREX_ROOT / "hdl_sv" / "core"
         sources = [

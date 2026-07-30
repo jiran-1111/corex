@@ -1,0 +1,21 @@
+<top abs_name="top" size="11" coverage="5" cover_percentage="45.45">
+  <dmem size="11" coverage="5" cover_percentage="45.45" abs_name="top.dmem">
+    <read_result size="3" coverage="2" cover_percentage="66.67" abs_name="top.dmem.read_result" weight="1" at_least="1">
+      <bin0 bin="ZERO" hits="21" abs_name="top.dmem.read_result.bin0" />
+      <bin1 bin="EXPECTED_8" hits="1" abs_name="top.dmem.read_result.bin1" />
+      <bin2 bin="OTHER" hits="0" abs_name="top.dmem.read_result.bin2" />
+    </read_result>
+    <read_index size="2" coverage="1" cover_percentage="50.0" abs_name="top.dmem.read_index" weight="1" at_least="1">
+      <bin0 bin="ADDR_0x100" hits="22" abs_name="top.dmem.read_index.bin0" />
+      <bin1 bin="OTHER_ADDR" hits="0" abs_name="top.dmem.read_index.bin1" />
+    </read_index>
+    <result_x_addr size="6" coverage="2" cover_percentage="33.33" abs_name="top.dmem.result_x_addr" weight="1" at_least="1">
+      <bin0 bin="('ZERO', 'ADDR_0x100')" hits="21" abs_name="top.dmem.result_x_addr.bin0" />
+      <bin1 bin="('ZERO', 'OTHER_ADDR')" hits="0" abs_name="top.dmem.result_x_addr.bin1" />
+      <bin2 bin="('EXPECTED_8', 'ADDR_0x100')" hits="1" abs_name="top.dmem.result_x_addr.bin2" />
+      <bin3 bin="('EXPECTED_8', 'OTHER_ADDR')" hits="0" abs_name="top.dmem.result_x_addr.bin3" />
+      <bin4 bin="('OTHER', 'ADDR_0x100')" hits="0" abs_name="top.dmem.result_x_addr.bin4" />
+      <bin5 bin="('OTHER', 'OTHER_ADDR')" hits="0" abs_name="top.dmem.result_x_addr.bin5" />
+    </result_x_addr>
+  </dmem>
+</top>

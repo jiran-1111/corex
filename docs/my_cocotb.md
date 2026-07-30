@@ -1,7 +1,25 @@
-# 我的cocotb覆盖率更新日志
+# cocotb覆盖率更新调研
+cocotb的覆盖率测试通常分为三个维度：RTL代码覆盖率、python代码覆盖率、和功能覆盖率。
 
-## 1. rtl代码覆盖率
-### 1.1 修改my_c_test/makefile
+## 1. RTL代码覆盖率
+主要衡量RTL代码被执行的程度，包括行覆盖率(line)、表达式覆盖率(expr)、翻转覆盖率(toggle)等。
+
+代码覆盖率必须由底层仿真器直接统计，cocotb仅仅负责在编译和运行阶段将相应的编译、仿真选项传递给仿真器。
+
+verilator使用 版本要求 ：Verilator 5.036+（cocotb 2.0 推荐）
+
+|覆盖率类型 |Verilator 参数 |
+|:--|:--|
+|全部（行+分支+翻转+表达式） |--coverage |
+|仅行/分支 |--coverage-line |
+|仅信号翻转| --coverage-toggle |
+|表达式覆盖 |--coverage-expr （v5.036+） |
+|用户自定义功能覆盖点 |--coverage-user|
+
+该参数可在cocotb脚本 cls.runner = setup_runner(extra_args=["--coverage"]) 位置修改
+
+
+### 1.1 修改 my_c_test / Makefile
 ```makefile
 # ==========================================
 # RTL 覆盖率测试目标
@@ -31,7 +49,7 @@ cov-report:
 .PHONY: run-cov run-all-cov cov-report
 ```
 
-### 1.2 修改my_c_test/cocotb_utils.py
+### 1.2 修改 my_c_test / cocotb_utils.py
 ```python
 import os
 import shutil
@@ -115,7 +133,7 @@ def collect_coverage(test_name: str = "default"):
         print(f"[Coverage] Saved coverage to {target_file}")
 ```
 
-### 1.3 修改cocotb脚本
+### 1.3 修改 cocotb 脚本 my_c_test / testcases / test_core_adder.py
 ```python
 from cocotb_utils import collect_coverage
 class TestCore_SV:
@@ -147,31 +165,31 @@ verilator_coverage --annotate html coverage.dat
 ```
 ```bash
 binary_search结果：
-"--coverage"Enables all types of coverage.
+"--coverage"   Enables all types of coverage.
 Total coverage (212/400) 53.00%
 See lines with '%00' in html
 
-"--coverage-line"Enables basic block line coverage.
+"--coverage-line"   Enables basic block line coverage.
 Total coverage (126/186) 67.00%
 See lines with '%00' in html
 
-"--coverage-toggle"Enables signal toggle coverage.
+"--coverage-toggle"   Enables signal toggle coverage.
 Total coverage (90/214) 42.00%
 See lines with '%00' in html
 
-"--coverage-expr"Enables expression coverage.
+"--coverage-expr"   Enables expression coverage.
 Total coverage (0/11) 0.00%
 See lines with '%00' in html
 
-"--coverage-user"Enables user-defined coverage points
+"--coverage-user"   Enables user-defined coverage points
 Total coverage (0/0) 0.00%
 
-"--coverage-line", "--coverage-expr"
+"--coverage-line", "--coverage-expr"   Both line and expr coverage test
 Total coverage (122/186) 65.00%
 See lines with '%00' in html
 
 ```
-可在sim_build/CoreTop/html下查看各个代码文件的执行情况
+可以在sim_build/CoreTop/html下查看各个代码文件的执行情况
 
 %000000（或包含 %00）：代表这行代码在仿真过程中一次都没有被执行过（需要补充测试用例的地方）。
 
@@ -185,12 +203,12 @@ pip install coverage
 ```
 ### 2.2 运行测试并收集覆盖率
 
-#### 方案一
-安装pytest-cov插件
+#### a.方案一
+安装 pytest-cov 插件
 ```bash
 pip install pytest-cov
 ```
-修改Makefile
+修改 my_c_test \ Makefile
 ```makefile
 run-cov: all
 	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py \
@@ -199,12 +217,12 @@ run-cov: all
 		-s -v --log-cli-level=INFO
 ```
 
-运行make run-cov TEST=adder
+运行 make run-cov TEST=adder
 
-生成html:Coverage HTML written to dir build/coverage/python_html
-#### 方案二
+生成 html : Coverage HTML written to dir build/coverage/python_html
+#### b.方案二
 
-新增testcases/confest.py脚本
+新增 testcases / confest.py 脚本
 ```python
 import os
 import atexit
@@ -233,7 +251,7 @@ if os.environ.get("COVERAGE") == "1":
     atexit.register(save_coverage)
 ```
 
-运行make run-cov TEST=adder
+运行 make run-cov TEST=adder
 
 ```bash
 make run-cov TEST=binary_search
@@ -242,3 +260,86 @@ python3 -m http.server 8000
 ```
 
 ## 3. 功能覆盖率测试
+
+用于衡量设计功能需求或边界条件是否被测试用例真实覆盖到。功能覆盖率的定义与采样在python端完成。
+
+### 3.1 安装
+```bash
+pip install cocotb-coverage
+```
+### 3.2 修改 my_c_test / testcases / test_core_adder.py
+增加功能覆盖率的代码
+```python
+# ==============================================================================
+# 1. 定义功能覆盖率模型 (Functional Coverage Model)
+# ==============================================================================
+@CoverPoint(
+    "top.dmem.read_result",
+    xf=lambda idx, val: "ZERO" if val == 0 else ("EXPECTED_8" if val == 8 else "OTHER"),
+    bins=["ZERO", "EXPECTED_8", "OTHER"]
+)
+@CoverPoint(
+    "top.dmem.read_index",
+    xf=lambda idx, val: f"ADDR_0x{idx*4:03X}",
+    bins=["ADDR_0x100", "OTHER_ADDR"]
+)
+@CoverCross(
+    "top.dmem.result_x_addr",
+    items=["top.dmem.read_result", "top.dmem.read_index"]
+)
+def sample_dmem_coverage(index: int, value: int):
+    """采样函数：当从 DMEM 读取计算结果时触发采样"""
+    pass
+
+@cocotb.test()
+async def t_core_c_add_test(dut):
+    
+    # ==========================================================================
+    # 3. 导出并打印功能覆盖率报告
+    # ==========================================================================
+    dut._log.info("\n" + "="*50 + "\nFunctional Coverage Summary\n" + "="*50)
+    #coverage_db.report_detailed(print_xml=False)
+    coverage_db.report_coverage(cocotb.log.info, bins=True)
+    # 导出一份 XML 文件便于后期汇总或统计
+    xml_out = TEST_DIR / "build" / "coverage" / "functional_coverage_adder.xml"
+    xml_out.parent.mkdir(parents=True, exist_ok=True)
+    coverage_db.export_to_xml(str(xml_out))
+```
+
+### 3.3 环境问题： cocotb-coverage 导致 cocotb 降级
+```bash
+pip install --no-deps cocotb-coverage
+Requirement already satisfied: cocotb-coverage in /home/ranrr/anaconda3/envs/corex_env/lib/python3.10/site-packages (1.2.0)
+python -c "from cocotb_tools.runner import get_runner; import cocotb_coverage; print('Environment Ready')"
+Environment Ready
+```
+### 3.4 测试结果
+```bash
+make run TEST=adder
+                                                     ==================================================
+                                                        Functional Coverage Summary
+                                                        ==================================================
+   250.00ns INFO     test                               top : <cocotb_coverage.coverage.CoverItem object at 0x7f1f0da4a560>, coverage=5, size=11 
+   250.00ns INFO     test                                  top.dmem : <cocotb_coverage.coverage.CoverItem object at 0x7f1f0ddec820>, coverage=5, size=11 
+   250.00ns INFO     test                                     top.dmem.read_index : <cocotb_coverage.coverage.CoverPoint object at 0x7f1f0da4a590>, coverage=1, size=2 
+   250.00ns INFO     test                                        BIN ADDR_0x100 : 22
+   250.00ns INFO     test                                        BIN OTHER_ADDR : 0
+   250.00ns INFO     test                                     top.dmem.read_result : <cocotb_coverage.coverage.CoverPoint object at 0x7f1f0ddef340>, coverage=2, size=3 
+   250.00ns INFO     test                                        BIN ZERO : 21
+   250.00ns INFO     test                                        BIN EXPECTED_8 : 1
+   250.00ns INFO     test                                        BIN OTHER : 0
+   250.00ns INFO     test                                     top.dmem.result_x_addr : <cocotb_coverage.coverage.CoverCross object at 0x7f1f0ddec7c0>, coverage=2, size=6 
+   250.00ns INFO     test                                        BIN ('ZERO', 'ADDR_0x100') : 21
+   250.00ns INFO     test                                        BIN ('ZERO', 'OTHER_ADDR') : 0
+   250.00ns INFO     test                                        BIN ('EXPECTED_8', 'ADDR_0x100') : 1
+   250.00ns INFO     test                                        BIN ('EXPECTED_8', 'OTHER_ADDR') : 0
+   250.00ns INFO     test                                        BIN ('OTHER', 'ADDR_0x100') : 0
+   250.00ns INFO     test                                        BIN ('OTHER', 'OTHER_ADDR') : 0
+   250.00ns INFO     cocotb.regression                  testcases.test_core_adder.t_core_c_add_test passed
+```
+## 4. 参考资料
+cocotb官方覆盖率文档：https://docs.cocotb.org/en/development/coverage.html
+
+cocotb-coverage文档：https://cocotb-coverage.readthedocs.io/en/latest/
+
+cocotb仿真器支持（含覆盖率参数）：https://github.com/cocotb/cocotb/blob/master/docs/source/simulator_support.rst
