@@ -59,7 +59,11 @@ clean:
 # 1. 带覆盖率运行单个测试
 run-cov: all
 	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py -s -v --log-cli-level=INFO
-
+#run-cov: all
+#	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py \
+#		--cov=testcases \
+#		--cov-report=html:build/coverage/python_html \
+#		-s -v --log-cli-level=INFO
 # 2. 带覆盖率运行所有测试并自动生成 HTML 报告
 run-all-cov: build-all
 	COVERAGE=1 python -m pytest testcases/

@@ -185,4 +185,60 @@ pip install coverage
 ```
 ### 2.2 运行测试并收集覆盖率
 
+#### 方案一
+安装pytest-cov插件
+```bash
+pip install pytest-cov
+```
+修改Makefile
+```makefile
+run-cov: all
+	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py \
+		--cov=testcases \
+		--cov-report=html:build/coverage/python_html \
+		-s -v --log-cli-level=INFO
+```
+
+运行make run-cov TEST=adder
+
+生成html:Coverage HTML written to dir build/coverage/python_html
+#### 方案二
+
+新增testcases/confest.py脚本
+```python
+import os
+import atexit
+import coverage
+
+# 只有当环境变量 COVERAGE=1 时才启动 Python 覆盖率收集
+if os.environ.get("COVERAGE") == "1":
+    # 指定只监控 testcases 目录，并明确报告保存的绝对路径
+    cov_file = os.path.abspath("build/coverage/.coverage")
+    os.makedirs(os.path.dirname(cov_file), exist_ok=True)
+    
+    cov = coverage.Coverage(
+        data_file=cov_file,
+        source=["testcases"],
+        branch=True
+    )
+    cov.start()
+
+    # 仿真进程退出时自动保存数据并生成网页
+    def save_coverage():
+        cov.stop()
+        cov.save()
+        cov.html_report(directory="build/coverage/python_html")
+        print(f"\n[Coverage] Python coverage report generated at build/coverage/python_html/index.html")
+
+    atexit.register(save_coverage)
+```
+
+运行make run-cov TEST=adder
+
+```bash
+make run-cov TEST=binary_search
+python3 -m http.server 8000 
+浏览器输入 http://localhost:8000/build/coverage/python_html/
+```
+
 ## 3. 功能覆盖率测试
