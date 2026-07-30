@@ -12,7 +12,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 sys.path.append(str(Path(__file__).parent.parent))
-from cocotb_utils import CLK_PERIOD_NS, Runner, setup_runner
+from cocotb_utils import CLK_PERIOD_NS, Runner, setup_runner,collect_coverage
 
 NOP = 0x00000013
 
@@ -125,7 +125,7 @@ class TestCore_SV:
             hdl_dir / "core.sv",
         ]
         cls.hdl_top = "CoreTop"
-        cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)
+        cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top,extra_args=["--coverage-line", "--coverage-expr"])
 
     def test_c_binary_search(self):
         self.runner.test(
@@ -133,3 +133,4 @@ class TestCore_SV:
             test_module=f"testcases.{Path(__file__).stem}",
             testcase="t_core_c_binary_search_test",
         )
+        collect_coverage("c_add")

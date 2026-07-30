@@ -8,55 +8,98 @@
 """Base utilities for cocotb unit tests."""
 
 import os
+import shutil
 from pathlib import Path
 from typing import Mapping, Sequence
 
 from cocotb_tools.runner import Runner, get_runner
 
 # Get the simulator name from environment or use default.
-# 从环境变量中获取仿真器名称（如：verilator, icarus, vcs等），如果没有设置，默认使用 verilator
-
 SIM = os.getenv("SIM", "verilator")
+
+# 读取环境变量 COVERAGE，判断是否开启覆盖率收集
+COVERAGE = os.getenv("COVERAGE", "0") == "1"
+# 支持从环境变量读取具体的覆盖率类型 (line / toggle / user / all)
+COVERAGE_TYPE = os.getenv("COVERAGE_TYPE", "all")
 
 # Default clock period in nanoseconds.
 CLK_PERIOD_NS = 10
 
 # Flag to always rebuild HDL regardless of source changes
-# 这是一个强制构建标志。设置为 True 意味着每次运行测试都会重新编译 HDL 源码，防止修改了 RTL 但仿真器没刷新的情况
-
 ALWAYS_BUILD = True
 
 # Project paths
-SIM_UNIT_DIR = Path(__file__).resolve().parent # 当前脚本所在目录
-COREX_DIR = SIM_UNIT_DIR.parent.parent # 整个项目的根目录
-BUILD_ROOT = COREX_DIR / "sim_build" # 仿真编译输出的临时目录
-HDL_SV_DIR = COREX_DIR / "hdl_sv" # SystemVerilog 源码存放目录
+SIM_UNIT_DIR = Path(__file__).resolve().parent  # 当前脚本所在目录
+COREX_DIR = SIM_UNIT_DIR.parent                  # 整个项目的根目录
+BUILD_ROOT = COREX_DIR / "sim_build"            # 仿真编译输出的临时目录
+HDL_SV_DIR = COREX_DIR / "hdl_sv"               # SystemVerilog 源码存放目录
 
 
 def setup_runner(
-    sources: Sequence[Path],      # 输入：硬件源码文件路径列表（如 [reg_file.sv]）
-    hdl_toplevel: str,# 输入：RTL 顶层模块名（如 "RegFile"）
-    build_id: str | None = None,  # 输入（可选）：编译标识符，
-    parameters: Mapping[str, object] = {},  # 输入（可选）：硬件的 Parameter 参数字典
-    simulator: str = SIM, # 输入：使用的仿真器
+    sources: Sequence[Path],      # 输入：硬件源码文件路径列表
+    hdl_toplevel: str,            # 输入：RTL 顶层模块名
+    build_id: str | None = None,  # 输入（可选）：编译标识符
+    parameters: Mapping[str, object] = {},  # 输入（可选）：硬件 Parameter 参数
+    simulator: str = SIM,         # 输入：使用的仿真器
+    extra_args: list[str] | None = None, # 支持外部自定义参数扩展
 ) -> Runner:
     """Setup cocotb runner and build HDL design."""
-
-    # Create a unique build directory based on build_id or hdl_toplevel.
-    # 1. 生成唯一的编译目录名
-    # 如果没传 build_id，就用顶层模块名。把点号和路径分隔符换成下划线，避免创建多层非法文件夹
 
     build_tag = build_id or hdl_toplevel
     safe_tag = build_tag.replace(".", "_").replace(os.sep, "_")
     build_dir = BUILD_ROOT / safe_tag
-    # 2. 获取 cocotb 的仿真运行器
+
     runner = get_runner(simulator)
-    # 3. 驱动仿真器进行硬件编译（HDL Build）
+
+    # 1. 首先把测试脚本（如 test_core_adder.py）里传进来的 extra_args 全部保留
+    compile_args = list(extra_args) if extra_args else []
+
+    # 2. 如果开启了 COVERAGE 环境变量，且测试脚本里没有显式指定 --coverage 相关的参数，再根据 COVERAGE_TYPE 补全
+    if COVERAGE:
+
+        has_cov_arg = any("--coverage" in arg or "-cm" in arg for arg in compile_args)
+        
+        if not has_cov_arg:
+            if simulator == "verilator":
+                if COVERAGE_TYPE == "line":
+                    compile_args.append("--coverage-line")
+                elif COVERAGE_TYPE == "toggle":
+                    compile_args.append("--coverage-toggle")
+                elif COVERAGE_TYPE == "expr" or COVERAGE_TYPE == "branch":
+                    compile_args.append("--coverage-expr")   # <--- 补充条件/表达式覆盖率
+                elif COVERAGE_TYPE == "user":
+                    compile_args.append("--coverage-user")
+                elif COVERAGE_TYPE == "line+expr":
+                    compile_args.extend(["--coverage-line", "--coverage-expr"])
+                else:  # default or "all"
+                    compile_args.append("--coverage") # --coverage 默认会开启 line + user + expr
+            elif simulator == "vcs":
+                compile_args.extend(["-cm", "line+cond+fsm+tgl"])
+
     runner.build(
         sources=sources,
         hdl_toplevel=hdl_toplevel,
         always=ALWAYS_BUILD,
         build_dir=build_dir,
         parameters=parameters,
+        build_args=compile_args,
     )
     return runner
+
+
+def collect_coverage(test_name: str = "default"):
+    """
+    通用函数：在测试运行结束后，提取并整理 Verilator 生成的 coverage.dat
+    """
+    if not COVERAGE:
+        return
+
+    cov_dir = COREX_DIR / "build" / "coverage"
+    cov_dir.mkdir(parents=True, exist_ok=True)
+
+    # Verilator 默认会在当前运行路径下生成 coverage.dat
+    default_cov_file = Path("coverage.dat")
+    if default_cov_file.exists():
+        target_file = cov_dir / f"coverage_{test_name}.dat"
+        shutil.move(default_cov_file, target_file)
+        print(f"[Coverage] Saved coverage to {target_file}")

@@ -16,7 +16,7 @@ verilator使用 版本要求 ：Verilator 5.036+（cocotb 2.0 推荐）
 |全部（行+分支+翻转+表达式） |--coverage |
 |仅行/分支 |--coverage-line |
 |仅信号翻转| --coverage-toggle |
-|表达式覆盖 |--coverage --coverage-expr （v5.036+） |
+|表达式覆盖 |--coverage-expr （v5.036+） |
 |用户自定义功能覆盖点 |--coverage-user|
 
 ```Makefile

@@ -51,3 +51,31 @@ clean:
 	rm -rf build/
 
 .PHONY: all clean run run-all build-all
+
+# ==========================================
+# RTL 覆盖率测试目标
+# ==========================================
+
+# 1. 带覆盖率运行单个测试
+run-cov: all
+	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py -s -v --log-cli-level=INFO
+
+# 2. 带覆盖率运行所有测试并自动生成 HTML 报告
+run-all-cov: build-all
+	COVERAGE=1 python -m pytest testcases/
+	@$(MAKE) cov-report
+
+# 3. 收集并生成 Verilator 代码覆盖率 HTML 报告
+cov-report:
+	@echo "==> Collecting Verilator Coverage..."
+	@mkdir -p build/coverage
+	# 将所有的 .dat 覆盖率文件汇总合并
+	verilator_coverage --write build/coverage/coverage.dat build/coverage/*.dat
+	# 转换为 lcov 格式
+	verilator_coverage --write-info build/coverage/coverage.info build/coverage/coverage.dat
+	# 生成 HTML 报告
+	genhtml build/coverage/coverage.info --output-directory build/coverage/html
+	@echo "==> Coverage Report generated at: build/coverage/html/index.html"
+
+
+.PHONY: run-cov run-all-cov cov-report

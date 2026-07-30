@@ -13,7 +13,7 @@ from cocotb.triggers import ClockCycles, RisingEdge, Timer
 # 导入上一级目录中的通用辅助工具
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from cocotb_utils import CLK_PERIOD_NS, HDL_SV_DIR, Runner, setup_runner
+from cocotb_utils import CLK_PERIOD_NS, HDL_SV_DIR, Runner, setup_runner,collect_coverage
 
 NOP = 0x00000013 # addi x0, x0, 0
 
@@ -132,11 +132,16 @@ class TestCore_SV:
             hdl_dir / "core.sv"
         ]
         cls.hdl_top = "CoreTop"
-        cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)
+        cls.runner = setup_runner(
+            sources=sources, 
+            hdl_toplevel=cls.hdl_top,
+            extra_args=["--coverage"]
+        )
 
     def test_c_add(self):
         self.runner.test(
             hdl_toplevel=self.hdl_top,
             test_module=f"testcases.{Path(__file__).stem}",
-            testcase="t_core_c_add_test",
+            testcase="t_core_c_add_test"
         )
+        collect_coverage("c_add")
