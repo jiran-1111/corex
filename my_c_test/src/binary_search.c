@@ -21,8 +21,6 @@ int binary_search(const int *arr, int size, int target) {
 }
 
 int main(void) {
-    // Explicit element assignments force the compiler to generate SW instructions 
-    // directly on the stack, eliminating reliance on .rodata/.data section loading.
     int arr[8];
     arr[0] = 2;
     arr[1] = 5;
@@ -39,7 +37,6 @@ int main(void) {
     *(volatile int *)0x1000 = idx1;
     *(volatile int *)0x1004 = idx2;
 
-    // Signal completion
     *(volatile int *)0x2000 = 1;
 
     return 0;

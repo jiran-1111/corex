@@ -6,7 +6,6 @@ static inline void write32(unsigned int addr, unsigned int val) {
     *(volatile unsigned int *)addr = val;
 }
 
-// 纯 RV32I 移位加法模拟乘法
 unsigned int soft_mul(unsigned int a, unsigned int b) {
     unsigned int res = 0;
     while (b > 0) {
@@ -25,7 +24,6 @@ int main() {
 
     unsigned int product = soft_mul(x, y); // 7006652 (0x006AEBBC)
 
-    // 位翻转测试
     unsigned int bit_reversed = 0;
     unsigned int temp = product;
     for (int i = 0; i < 32; i++) {

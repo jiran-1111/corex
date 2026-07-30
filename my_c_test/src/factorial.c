@@ -13,7 +13,6 @@ int multiply(volatile int a, volatile int b) {
     return result;
 }
 
-// 递归阶乘实现
 __attribute__((noinline))
 int factorial(int n) {
     call_count++;
