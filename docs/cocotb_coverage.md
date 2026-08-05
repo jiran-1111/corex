@@ -1,7 +1,7 @@
-# cocotb覆盖率更新调研
-cocotb的覆盖率测试通常分为三个维度：RTL代码覆盖率、python代码覆盖率、和功能覆盖率。
+# cocotb覆盖率调研
+cocotb的覆盖率测试通常分为三个维度：RTL代码覆盖率、python代码覆盖率、功能覆盖率。
 
-## 1. RTL代码覆盖率
+## 1. RTL 代码覆盖率
 主要衡量RTL代码被执行的程度，包括行覆盖率(line)、表达式覆盖率(expr)、翻转覆盖率(toggle)等。
 
 代码覆盖率必须由底层仿真器直接统计，cocotb仅仅负责在编译和运行阶段将相应的编译、仿真选项传递给仿真器。
@@ -160,9 +160,11 @@ cd /home/ranrr/pku_workspace/corex/my_c_test
 make run TEST=adder
 
 find ~/pku_workspace/ -name "*.dat" # 找到coverage.dat所在地址
-cd coverage.data所在地址 如 cd /home/ranrr/pku_workspace/corex/sim_build/CoreTop/
+cd coverage.data所在地址 
+如：cd /home/ranrr/pku_workspace/corex/sim_build/CoreTop/
 verilator_coverage --annotate html coverage.dat
 ```
+结果：
 ```bash
 binary_search结果：
 "--coverage"   Enables all types of coverage.
