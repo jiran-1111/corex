@@ -63,7 +63,7 @@ make clean
 | cocotb RUNS=1（单次） | ~0.07 s | ~5.5 ms | ~65 ms（≈90%） | ~3.9 K cycles/s | ~51 K cycles/s |
 | cocotb RUNS=50 | ~0.34 s | ~263 ms | ~65 ms（≈20%） | ~41 K cycles/s | ~54 K cycles/s |
 | 纯 Verilator 50 次（`perf`） | 5.9 ms | 5.1 ms | 0.83 ms | 2.36 M cycles/s | 2.75 M cycles/s |
-| 纯 Verilator 50 次（`perf-nodb`） | 6.2 ms | 5.3 ms | 0.82 ms | 2.28 M cycles/s | 2.63 M cycles/s |
+| 纯 Verilator 1 次 | 2.448 ms | 0.142 ms | 2.271 ms | 2.30 M cycles/s | 2.30 M cycles/s |
 
 > 本机为共享 WSL2，负载波动 ±40%，数值供量级参考；完整数据与一次 pytest 的耗时分解见
 > [lab_data.md](lab_data.md)。
