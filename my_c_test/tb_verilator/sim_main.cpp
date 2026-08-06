@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
     int32_t     expect1    = 5;
     int32_t     expect2    = -1;
     bool        verbose    = false;
-
+    auto t_process_start = Clock::now();
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
         auto need_val = [&](const char* name) -> const char* {
@@ -240,11 +240,14 @@ int main(int argc, char** argv) {
     }
     dmem_write(0x2000, 0);   // completion flag cleared
 
+    auto t_init_done = Clock::now();
+    double init_sec = std::chrono::duration<double>(t_init_done - t_process_start).count();
+
     // ------------------------------------------------------------------
     // Benchmark loop
     // ------------------------------------------------------------------
     uint64_t total_cycles = 0;
-    double   total_time   = 0.0;
+    double   total_sim_time   = 0.0;
     bool     all_pass     = true;
 
     for (uint64_t it = 0; it < iters; it++) {
@@ -256,7 +259,8 @@ int main(int argc, char** argv) {
 
         double seconds = std::chrono::duration<double>(t1 - t0).count();
         total_cycles += cycles;
-        total_time   += seconds;
+        total_sim_time += seconds;
+        //total_time   += seconds;
 
         int32_t idx1 = static_cast<int32_t>(dmem_read(0x1000));
         int32_t idx2 = static_cast<int32_t>(dmem_read(0x1004));
@@ -275,21 +279,32 @@ int main(int argc, char** argv) {
                    (unsigned long long)max_cycles);
         }
     }
+    auto t_process_end = Clock::now();
+    double total_wall_sec = std::chrono::duration<double>(t_process_end - t_process_start).count();
 
     // ------------------------------------------------------------------
     // Summary + efficiency report
     // ------------------------------------------------------------------
-    double avg_sec    = total_time / static_cast<double>(iters);
-    double avg_cycles = static_cast<double>(total_cycles) / static_cast<double>(iters);
-    double through    = (avg_sec > 0.0) ? avg_cycles / avg_sec : 0.0;
+    // ------------------------------------------------------------------
+    // 详细吞吐量报告 (修复 total_cycles 统计)
+    // ------------------------------------------------------------------
+    double avg_sim_sec     = total_sim_time / static_cast<double>(iters);
+    double avg_cycles      = static_cast<double>(total_cycles) / static_cast<double>(iters);
+    
+    // Pure Sim：用平均周期除以平均纯仿真时间
+    double pure_throughput = (avg_sim_sec > 0.0) ? avg_cycles / avg_sim_sec : 0.0;
+    
+    // Wall-Clock：必须用总周期数 (total_cycles) 除以总墙上时间 (total_wall_sec)
+    double real_throughput = (total_wall_sec > 0.0) ? static_cast<double>(total_cycles) / total_wall_sec : 0.0;
 
     printf("--------------------------------------------------------------\n");
-    printf(" [tb] RESULT : %s\n", all_pass ? "PASS" : "FAIL");
-    printf(" [tb] iters  : %llu\n", (unsigned long long)iters);
-    printf(" [tb] avg cycles        : %.1f\n", avg_cycles);
-    printf(" [tb] avg wall time     : %.6f s\n", avg_sec);
-    printf(" [tb] throughput        : %.1f cycles/s  (%.3f ns/cycle)\n",
-           through, (through > 0.0) ? 1e9 / through : 0.0);
+    printf(" [tb] RESULT             : %s\n", all_pass ? "PASS" : "FAIL");
+    printf(" [tb] Setup/Init Overhead: %.6f s\n", init_sec);
+    printf(" [tb] Total Process Wall Time: %.6f s\n", total_wall_sec);
+    printf(" [tb] Pure Sim Throughput: %.1f cycles/s (%.3f ns/cycle)\n",
+           pure_throughput, (pure_throughput > 0.0) ? 1e9 / pure_throughput : 0.0);
+    printf(" [tb] Wall-Clock Throughput: %.1f cycles/s (%.3f ns/cycle)\n",
+           real_throughput, (real_throughput > 0.0) ? 1e9 / real_throughput : 0.0);
     printf("--------------------------------------------------------------\n");
 
     g_top->final();

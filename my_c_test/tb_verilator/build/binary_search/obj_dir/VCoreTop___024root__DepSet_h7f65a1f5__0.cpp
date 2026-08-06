@@ -107,16 +107,17 @@ void VCoreTop___024root___eval_triggers__act(VCoreTop___024root* vlSelf) {
 #endif
 }
 
-void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__0(VCoreTop_Ifu* vlSelf);
 void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__0(VCoreTop_IMemTop* vlSelf);
+void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf);
+void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__0(VCoreTop_IBusIf* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__1(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__2(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__3(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__4(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_IMem___nba_sequent__TOP__CoreTop__u_ifu__IMem__imem__0(VCoreTop_IMem* vlSelf);
-void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__1(VCoreTop_IBusIf* vlSelf);
+void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__2(VCoreTop_IBusIf* vlSelf);
 void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__1(VCoreTop_IMemTop* vlSelf);
 void VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__1(VCoreTop_Ifu* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__6(VCoreTop_CoreTop* vlSelf);
@@ -125,16 +126,11 @@ void VCoreTop_DBusIf___nba_sequent__TOP__CoreTop__u_dmem__DOT__dbus__2(VCoreTop_
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__8(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__9(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__2(VCoreTop_Ifu* vlSelf);
-void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10(VCoreTop_CoreTop* vlSelf);
-void VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__3(VCoreTop_Ifu* vlSelf);
-void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__2(VCoreTop_IBusIf* vlSelf);
-void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__2(VCoreTop_IMemTop* vlSelf);
-void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__3(VCoreTop_IBusIf* vlSelf);
 void VCoreTop_IMem___nba_sequent__TOP__CoreTop__u_ifu__IMem__imem__1(VCoreTop_IMem* vlSelf);
-void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__11(VCoreTop_CoreTop* vlSelf);
+void VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__3(VCoreTop_IBusIf* vlSelf);
 void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__1(VCoreTop_CoreTop* vlSelf);
-void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__12(VCoreTop_CoreTop* vlSelf);
+void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3(VCoreTop_CoreTop* vlSelf);
 void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4(VCoreTop_CoreTop* vlSelf);
@@ -148,12 +144,11 @@ void VCoreTop___024root___eval_nba(VCoreTop___024root* vlSelf) {
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
-    if ((3ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0((&vlSymsp->TOP__CoreTop));
-    }
     if ((0x40ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__0((&vlSymsp->TOP__CoreTop__u_ifu));
         VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__0((&vlSymsp->TOP__CoreTop__u_ifu__IMem));
+        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0((&vlSymsp->TOP__CoreTop));
+        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__0((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
     }
     if ((8ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__1((&vlSymsp->TOP__CoreTop));
@@ -163,12 +158,12 @@ void VCoreTop___024root___eval_nba(VCoreTop___024root* vlSelf) {
         VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__3((&vlSymsp->TOP__CoreTop));
         VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__4((&vlSymsp->TOP__CoreTop));
     }
-    if ((1ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
+    if ((3ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5((&vlSymsp->TOP__CoreTop));
     }
     if ((0x80ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_IMem___nba_sequent__TOP__CoreTop__u_ifu__IMem__imem__0((&vlSymsp->TOP__CoreTop__u_ifu__IMem__imem));
-        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__1((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
+        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__2((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
         VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__1((&vlSymsp->TOP__CoreTop__u_ifu__IMem));
         VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__1((&vlSymsp->TOP__CoreTop__u_ifu));
         VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__6((&vlSymsp->TOP__CoreTop));
@@ -183,15 +178,8 @@ void VCoreTop___024root___eval_nba(VCoreTop___024root* vlSelf) {
         VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__2((&vlSymsp->TOP__CoreTop__u_ifu));
     }
     if ((0x40ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10((&vlSymsp->TOP__CoreTop));
-        VCoreTop_Ifu___nba_sequent__TOP__CoreTop__u_ifu__3((&vlSymsp->TOP__CoreTop__u_ifu));
-        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__2((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
-        VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__2((&vlSymsp->TOP__CoreTop__u_ifu__IMem));
-        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__3((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
         VCoreTop_IMem___nba_sequent__TOP__CoreTop__u_ifu__IMem__imem__1((&vlSymsp->TOP__CoreTop__u_ifu__IMem__imem));
-    }
-    if ((3ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__11((&vlSymsp->TOP__CoreTop));
+        VCoreTop_IBusIf___nba_sequent__TOP__CoreTop__u_ifu__IMem__ibus__3((&vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus));
     }
     if ((0x30ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_CoreTop___nba_comb__TOP__CoreTop__0((&vlSymsp->TOP__CoreTop));
@@ -199,15 +187,15 @@ void VCoreTop___024root___eval_nba(VCoreTop___024root* vlSelf) {
         VCoreTop_CoreTop___nba_comb__TOP__CoreTop__1((&vlSymsp->TOP__CoreTop));
     }
     if ((0x80ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__12((&vlSymsp->TOP__CoreTop));
-    }
-    if ((0x14ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2((&vlSymsp->TOP__CoreTop));
-    }
-    if ((0xcULL & vlSelfRef.__VnbaTriggered.word(0U))) {
-        VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3((&vlSymsp->TOP__CoreTop));
+        VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10((&vlSymsp->TOP__CoreTop));
     }
     if ((0xc0ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
+        VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2((&vlSymsp->TOP__CoreTop));
+    }
+    if ((0x14ULL & vlSelfRef.__VnbaTriggered.word(0U))) {
+        VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3((&vlSymsp->TOP__CoreTop));
+    }
+    if ((0xcULL & vlSelfRef.__VnbaTriggered.word(0U))) {
         VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4((&vlSymsp->TOP__CoreTop));
     }
     if ((0x3cULL & vlSelfRef.__VnbaTriggered.word(0U))) {

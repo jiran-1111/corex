@@ -155,7 +155,6 @@ class alignas(VL_CACHE_LINE_BYTES) VCoreTop_CoreTop final : public VerilatedModu
     struct {
         IData/*31:0*/ wb_write_data;
         IData/*31:0*/ mem_rdata;
-        IData/*31:0*/ cycle_cnt;
         IData/*31:0*/ u_decoder__DOT__instruction;
         IData/*31:0*/ u_decoder__DOT__PC;
         IData/*31:0*/ u_decoder__DOT__write_data;
@@ -201,7 +200,6 @@ class alignas(VL_CACHE_LINE_BYTES) VCoreTop_CoreTop final : public VerilatedModu
         IData/*31:0*/ u_dmem__DOT__dmem__DOT__write_data;
         IData/*31:0*/ u_dmem__DOT__dmem__DOT__unnamedblk1__DOT__i;
         IData/*31:0*/ u_dmem__DOT__dmem__DOT__unnamedblk2__DOT__i;
-        IData/*31:0*/ __Vdly__cycle_cnt;
         VlWide<3>/*76:0*/ id_ex_data_in;
         VlWide<3>/*76:0*/ mem_data_out;
         QData/*63:0*/ u_if_id_reg__DOT__data_in;

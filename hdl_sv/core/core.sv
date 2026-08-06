@@ -274,7 +274,7 @@ module CoreTop #(
     // =========================================================================
     // Debug Monitor
     // =========================================================================
-    `define DEBUG_CORE
+    //`define DEBUG_CORE
 
     `ifdef DEBUG_CORE
     initial begin

@@ -6,14 +6,11 @@
 #include "VCoreTop__Syms.h"
 #include "VCoreTop___024root.h"
 
-VL_ATTR_COLD void VCoreTop_CoreTop___eval_static__TOP__CoreTop(VCoreTop_CoreTop* vlSelf);
-
 VL_ATTR_COLD void VCoreTop___024root___eval_static(VCoreTop___024root* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+    VCoreTop___024root___eval_static\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
-    VCoreTop_CoreTop___eval_static__TOP__CoreTop((&vlSymsp->TOP__CoreTop));
     vlSelfRef.__Vtrigprevexpr___TOP__CoreTop__clk__0 
         = vlSymsp->TOP__CoreTop.clk;
     vlSelfRef.__Vtrigprevexpr___TOP__CoreTop__rst__0 

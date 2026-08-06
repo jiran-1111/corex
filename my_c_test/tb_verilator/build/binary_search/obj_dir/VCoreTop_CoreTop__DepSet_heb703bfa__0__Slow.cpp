@@ -5,21 +5,12 @@
 #include "VCoreTop__pch.h"
 #include "VCoreTop_CoreTop.h"
 
-VL_ATTR_COLD void VCoreTop_CoreTop___eval_static__TOP__CoreTop(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___eval_static__TOP__CoreTop\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.cycle_cnt = 0U;
-}
-
 VL_ATTR_COLD void VCoreTop_CoreTop___eval_initial__TOP__CoreTop(VCoreTop_CoreTop* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___eval_initial__TOP__CoreTop\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
     vlSelfRef.stall = 0U;
-    VL_WRITEF_NX("===============================================================================================================================================\n Time(ns) | Cycle | [IF] pc_sel | [IF] next_PC | [IF] PC_reg | [IF] inst_PC | [IF] Instr | [ID] PC | [ID] Real_Inst | [EX] WB_Data | RegW | Flush\n===============================================================================================================================================\n",0);
     vlSelfRef.u_dmem__DOT__dmem__DOT__unnamedblk1__DOT__i = 0U;
     while (VL_GTS_III(32, 0x1000U, vlSelfRef.u_dmem__DOT__dmem__DOT__unnamedblk1__DOT__i)) {
         vlSelfRef.u_dmem__DOT__dmem__DOT__mem[(0xfffU 
@@ -94,7 +85,6 @@ VL_ATTR_COLD void VCoreTop_CoreTop___ctor_var_reset(VCoreTop_CoreTop* vlSelf) {
     vlSelf->dmem_err = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 15879450885275558624ull);
     vlSelf->flush_d = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 12157993274752035746ull);
     vlSelf->real_if_id_flush = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 11032393963725397829ull);
-    vlSelf->cycle_cnt = 0;
     vlSelf->u_if_id_reg__DOT__clk = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 1155571005677575077ull);
     vlSelf->u_if_id_reg__DOT__rst = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 13919705248861663337ull);
     vlSelf->u_if_id_reg__DOT__flush = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 1987213197145316253ull);
@@ -230,5 +220,4 @@ VL_ATTR_COLD void VCoreTop_CoreTop___ctor_var_reset(VCoreTop_CoreTop* vlSelf) {
     vlSelf->u_dmem__DOT__dmem__DOT__write_data = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 8949063453499613835ull);
     vlSelf->u_dmem__DOT__dmem__DOT__unnamedblk1__DOT__i = 0;
     vlSelf->u_dmem__DOT__dmem__DOT__unnamedblk2__DOT__i = 0;
-    vlSelf->__Vdly__cycle_cnt = 0;
 }

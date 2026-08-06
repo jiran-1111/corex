@@ -577,6 +577,14 @@ VL_INLINE_OPT void VCoreTop_CoreTop___ico_sequent__TOP__CoreTop__3(VCoreTop_Core
                                            | (QData)((IData)(vlSelfRef.if_instruction)));
 }
 
+VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0\n"); );
+    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
+    auto& vlSelfRef = std::ref(*vlSelf).get();
+    // Body
+    vlSelfRef.if_pc = vlSymsp->TOP__CoreTop__u_ifu.inst_PC;
+}
+
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__2(VCoreTop_CoreTop* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__2\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
@@ -626,29 +634,6 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__4(VCoreTop_Core
     vlSelfRef.dmem_wack = vlSelfRef.u_dmem__DOT__wack;
 }
 
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    if (VL_UNLIKELY(((1U & (~ (IData)(vlSelfRef.rst)))))) {
-        VL_WRITEF_NX("%8t | %5d |      2'b%b |   %x |   %x |   %x |  %x | %x |   %x   |   %x   |  %b   |   %b\n",0,
-                     64,VL_TIME_UNITED_Q(1),-12,32,
-                     vlSelfRef.cycle_cnt,2,(IData)(vlSelfRef.id_pc_sel),
-                     32,vlSymsp->TOP__CoreTop__u_ifu.next_PC,
-                     32,vlSymsp->TOP__CoreTop__u_ifu.PC_reg,
-                     32,vlSelfRef.if_pc,32,vlSelfRef.if_instruction,
-                     32,vlSelfRef.id_pc,32,vlSelfRef.id_instruction_real,
-                     32,vlSelfRef.wb_write_data,1,(IData)(vlSelfRef.wb_reg_write),
-                     1,vlSelfRef.real_if_id_flush);
-        if (VL_UNLIKELY((vlSelfRef.flush))) {
-            VL_WRITEF_NX("          >>> [FLUSH DETECTED] Branch/Jump Taken at Time %0t ns | Target PC: %x <<<\n",0,
-                         64,VL_TIME_UNITED_Q(1),-12,
-                         32,vlSymsp->TOP__CoreTop__u_ifu.next_PC);
-        }
-    }
-}
-
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__6(VCoreTop_CoreTop* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__6\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
@@ -668,14 +653,6 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__8(VCoreTop_Core
                                                      >> 2U));
     vlSelfRef.u_dmem__DOT__rack = vlSymsp->TOP__CoreTop__u_dmem__DOT__dbus.rack;
     vlSelfRef.dmem_rack = vlSelfRef.u_dmem__DOT__rack;
-}
-
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.if_pc = vlSymsp->TOP__CoreTop__u_ifu.inst_PC;
 }
 
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf) {

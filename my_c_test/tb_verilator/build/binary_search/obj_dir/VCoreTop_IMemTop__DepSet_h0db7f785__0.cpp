@@ -33,6 +33,7 @@ VL_INLINE_OPT void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__0(
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
+    vlSelfRef.addr = vlSymsp->TOP__CoreTop__u_ifu.PC_reg;
     vlSelfRef.req = vlSymsp->TOP__CoreTop__u_ifu.fetch;
 }
 
@@ -43,12 +44,4 @@ VL_INLINE_OPT void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__1(
     // Body
     vlSelfRef.ack = vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus.ack;
     vlSelfRef.rdata = vlSymsp->TOP__CoreTop__u_ifu__IMem__ibus.rdata;
-}
-
-VL_INLINE_OPT void VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__2(VCoreTop_IMemTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+          VCoreTop_IMemTop___nba_sequent__TOP__CoreTop__u_ifu__IMem__2\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.addr = vlSymsp->TOP__CoreTop__u_ifu.PC_reg;
 }

@@ -30,7 +30,7 @@ VCoreTop__Syms::VCoreTop__Syms(VerilatedContext* contextp, const char* namep, VC
     , TOP__CoreTop__u_ifu__IMem__imem{this, Verilated::catName(namep, "CoreTop.u_ifu.IMem.imem")}
 {
         // Check resources
-        Verilated::stackCheck(73);
+        Verilated::stackCheck(81);
     // Configure time unit / time precision
     _vm_contextp__->timeunit(-12);
     _vm_contextp__->timeprecision(-12);
@@ -77,7 +77,6 @@ VCoreTop__Syms::VCoreTop__Syms(VerilatedContext* contextp, const char* namep, VC
         __Vscope_CoreTop.varInsert(__Vfinal,"IMEM_INIT_FILE", const_cast<void*>(static_cast<const void*>(TOP__CoreTop.IMEM_INIT_FILE.c_str())), true, VLVT_STRING,VLVD_NODIR|VLVF_PUB_RW,0,0);
         __Vscope_CoreTop.varInsert(__Vfinal,"NOP", const_cast<void*>(static_cast<const void*>(&(TOP__CoreTop.NOP))), true, VLVT_UINT32,VLVD_NODIR|VLVF_PUB_RW,0,1 ,31,0);
         __Vscope_CoreTop.varInsert(__Vfinal,"clk", &(TOP__CoreTop.clk), false, VLVT_UINT8,VLVD_IN|VLVF_PUB_RW,0,0);
-        __Vscope_CoreTop.varInsert(__Vfinal,"cycle_cnt", &(TOP__CoreTop.cycle_cnt), false, VLVT_UINT32,VLVD_NODIR|VLVF_PUB_RW|VLVF_DPI_CLAY,0,1 ,31,0);
         __Vscope_CoreTop.varInsert(__Vfinal,"dmem_err", &(TOP__CoreTop.dmem_err), false, VLVT_UINT8,VLVD_NODIR|VLVF_PUB_RW,0,0);
         __Vscope_CoreTop.varInsert(__Vfinal,"dmem_gnt", &(TOP__CoreTop.dmem_gnt), false, VLVT_UINT8,VLVD_NODIR|VLVF_PUB_RW,0,0);
         __Vscope_CoreTop.varInsert(__Vfinal,"dmem_rack", &(TOP__CoreTop.dmem_rack), false, VLVT_UINT8,VLVD_NODIR|VLVF_PUB_RW,0,0);

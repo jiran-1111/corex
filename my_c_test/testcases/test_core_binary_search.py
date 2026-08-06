@@ -7,6 +7,8 @@
 
 from pathlib import Path
 import sys
+import os
+import time
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
@@ -15,6 +17,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from cocotb_utils import CLK_PERIOD_NS, Runner, setup_runner,collect_coverage
 
 NOP = 0x00000013
+
+# 在同一个 cocotb 会话内连续运行程序 RUNS 次，摊销 cocotb/Verilator 初始化开销。
+# 可通过环境变量覆盖，例如：RUNS=10 make run TEST=binary_search
+RUNS = int(os.getenv("RUNS", "50"))
 
 
 def load_hex_file(filepath):
@@ -45,18 +51,31 @@ def fill_mem(dut, words: list[int]):
         dut.u_ifu.IMem.imem.mem[i].value = word
 
 
-def read_dmem(dut, byte_addr: int) -> int:
-    """Read DMEM word by byte address and cast to 32-bit signed int."""
-    val = int(dut.u_dmem.dmem.mem[byte_addr // 4].value)
+def signed_read(handle) -> int:
+    """Read a cached DMem word handle and cast to 32-bit signed int."""
+    val = int(handle.value)
     if val & 0x80000000:
         val -= 0x100000000
     return val
 
 
-async def setup_dut(dut, start_pc: int = 0):
-    """Initialize clock and reset pulse for DUT setup."""
+def read_dmem(dut, byte_addr: int) -> int:
+    """Read DMEM word by byte address and cast to 32-bit signed int."""
+    return signed_read(dut.u_dmem.dmem.mem[byte_addr // 4])
+
+
+def start_clock(dut):
+    """Start the clock. Call once per test, NOT per iteration."""
     clock = Clock(dut.clk, CLK_PERIOD_NS, unit="ns")
     cocotb.start_soon(clock.start())
+
+
+async def reset_and_start(dut, start_pc: int = 0):
+    """Assert reset for 2 cycles, then release and pulse start for 1 cycle.
+
+    Re-runnable: performs the same reset+start sequence as the original
+    setup_dut(), but without creating a new Clock each time.
+    """
     dut.rst.value = 1
     dut.start.value = 0
     dut.program_address.value = start_pc
@@ -72,7 +91,108 @@ async def setup_dut(dut, start_pc: int = 0):
 
 @cocotb.test()
 async def t_core_c_binary_search_test(dut):
-    """Run C binary search test and verify target index results."""
+    """Run the C binary search program RUNS times in one cocotb session and
+    aggregate throughput, so the cocotb/Verilator init overhead is amortized."""
+    TEST_DIR = Path(__file__).parent.parent
+    hex_path = TEST_DIR / "build" / "binary_search" / "test.hex"
+
+    # 1. 前置准备（初始化/固定开销，只做一次）
+    words = load_hex_file(hex_path)
+    fill_mem(dut, words)          # IMem 只读、程序运行不修改 → 只填充一次
+    start_clock(dut)              # 时钟也只启动一次，全程复用
+
+    # 热路径优化：缓存句柄 + 复用触发对象，避免每周期重复 VPI 层级查找/句柄创建。
+    # 实测（best-of-3, 50×282 周期）纯仿真时间约降 20%：
+    #   RisingEdge 新建触发  ~23.4 µs/cycle → 复用触发 ~18.7 µs/cycle
+    done_handle = dut.u_dmem.dmem.mem[0x2000 // 4]
+    idx1_handle = dut.u_dmem.dmem.mem[0x1000 // 4]
+    idx2_handle = dut.u_dmem.dmem.mem[0x1004 // 4]
+    edge = RisingEdge(dut.clk)
+
+    max_cycles = 2000
+    iters = RUNS
+
+    total_cycles = 0
+    total_pure_sim = 0.0
+    n_pass = 0
+    failures = []
+
+    t_test_start = time.perf_counter()   # 整个测试体的墙钟时间起点
+
+    for it in range(iters):
+        # DMem 不复位清零 → 每轮重跑前清除完成标志与结果区（复用缓存句柄）
+        done_handle.value = 0
+        idx1_handle.value = 0
+        idx2_handle.value = 0
+        await reset_and_start(dut, start_pc=0)
+
+        # ---------- [ 开始记录纯动态仿真时间 ] ----------
+        done = False
+        actual_cycles = 0
+        t_start = time.perf_counter()
+
+        for cycle in range(max_cycles):
+            await edge
+            if int(done_handle.value) == 1:
+                done = True
+                actual_cycles = cycle + 1
+                break
+
+        t_end = time.perf_counter()
+        total_pure_sim += t_end - t_start  # 纯动态运行时间 (秒)
+        # ------------------------------------------------
+
+        if not done:
+            #dut._log.error(f"[iter {it:3d}] TIMEOUT after {max_cycles} cycles!")
+            #failures.append(f"iter {it}: timeout")
+            continue
+
+        idx1 = signed_read(idx1_handle)
+        idx2 = signed_read(idx2_handle)
+
+        ok = (idx1 == 5) and (idx2 == -1)
+        if ok:
+            n_pass += 1
+        else:
+            failures.append(f"iter {it}: idx1={idx1} (exp 5), idx2={idx2} (exp -1)")
+        total_cycles += actual_cycles
+
+        #dut._log.info(f"[iter {it:3d}] cycles={actual_cycles:4d}  idx1={idx1:2d}  idx2={idx2:3d}  {'PASS' if ok else 'FAIL'}")
+
+    t_test_end = time.perf_counter()
+    test_wall_time = t_test_end - t_test_start
+
+    assert n_pass == iters, f"{iters - n_pass}/{iters} iterations FAILED: {failures}"
+
+    # ---------- [ 汇总吞吐量报告 ] ----------
+    avg_cycles = total_cycles / iters
+    pure_throughput = total_cycles / total_pure_sim if total_pure_sim > 0 else 0.0
+    wall_throughput = total_cycles / test_wall_time if test_wall_time > 0 else 0.0
+    fixed_overhead = test_wall_time - total_pure_sim   # 装载/复位/调度等固定开销
+    avg_overhead = fixed_overhead / iters              # 被 RUNS 次摊销后的单次开销
+
+    pure_line = (f" [cocotb] Pure Sim Throughput  : {pure_throughput:.1f} cycles/s "
+                 f"({1e9 / pure_throughput:.1f} ns/cycle)") if pure_throughput > 0 else \
+                " [cocotb] Pure Sim Throughput  : n/a"
+    wall_line = (f" [cocotb] Wall-Clock Throughput: {wall_throughput:.1f} cycles/s "
+                 f"({1e9 / wall_throughput:.1f} ns/cycle)") if wall_throughput > 0 else \
+                " [cocotb] Wall-Clock Throughput: n/a"
+
+    dut._log.info("==============================================================")
+    dut._log.info(f" [cocotb Profiling Result]  ({iters} iterations)")
+    dut._log.info(f" [cocotb] Total Sim Cycles     : {total_cycles} cycles (avg {avg_cycles:.1f}/iter)")
+    dut._log.info(f" [cocotb] Pure Sim Dynamic Time: {total_pure_sim * 1000:.3f} ms")
+    dut._log.info(pure_line)
+    dut._log.info(f" [cocotb] Test Wall Time       : {test_wall_time * 1000:.3f} ms")
+    dut._log.info(wall_line)
+    dut._log.info(f" [cocotb] Fixed Overhead/iter  : {avg_overhead * 1000:.3f} ms (amortized over {iters} runs)")
+    dut._log.info(f" [cocotb] Passed               : {n_pass}/{iters}")
+    dut._log.info("==============================================================")
+
+"""    
+@cocotb.test()
+async def t_core_c_binary_search_test(dut):
+
     TEST_DIR = Path(__file__).parent.parent
     hex_path = TEST_DIR / "build" / "binary_search" / "test.hex"
 
@@ -100,7 +220,7 @@ async def t_core_c_binary_search_test(dut):
     assert idx1 == 5, f"Search for existing element failed! Expected 5, got {idx1}"
     assert idx2 == -1, f"Search for non-existent element failed! Expected -1, got {idx2}"
     dut._log.info("Binary search test passed successfully!")
-
+"""
 
 class TestCore_SV:
     runner: Runner
@@ -125,7 +245,9 @@ class TestCore_SV:
             hdl_dir / "core.sv",
         ]
         cls.hdl_top = "CoreTop"
-        cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top,extra_args=["--coverage-line", "--coverage-expr"])
+        # 覆盖率由环境变量 COVERAGE=1 控制（cocotb_utils.setup_runner / make run-cov）；
+        # 默认不插桩，避免额外模型开销与每次运行的 coverage.dat 写入
+        cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)
 
     def test_c_binary_search(self):
         self.runner.test(

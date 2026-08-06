@@ -32,5 +32,4 @@ VL_ATTR_COLD void VCoreTop_Ifu___ctor_var_reset(VCoreTop_Ifu* vlSelf) {
     vlSelf->imem_err = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 418908598611598165ull);
     vlSelf->fetch = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 14022223855178902746ull);
     vlSelf->jump_or_branch_taken = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 10257882756567247808ull);
-    vlSelf->__Vdly__PC_reg = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 675397870620617090ull);
 }

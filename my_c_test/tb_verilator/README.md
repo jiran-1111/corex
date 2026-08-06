@@ -50,13 +50,56 @@ make clean
 
 ## binary_search 效率实测（2026-08，Verilator 5.040，本机）
 
-程序完成约 280 个时钟周期。
+程序完成约 282 个时钟周期/次。cocotb 侧支持 `RUNS=N` 连续运行以摊销初始化
+（`RUNS=50 make run TEST=binary_search`）。
 
-| 运行方式 | 仿真耗时 | 吞吐 | 每周期 |
-|----------|---------|------|--------|
-| cocotb + Verilator（cocotb 报告，含每周期 VPI/Python 开销） | ~0.08 s | ~3.5 K cycles/s | ~285 µs |
-| 纯 Verilator，RTL 调试 `$display` 保留 | ~0.85 ms | ~0.34 M cycles/s | ~2.9 µs |
-| 纯 Verilator，剥离调试打印（`perf-nodb`） | ~0.09 ms | ~3.4 M cycles/s | ~0.28 µs |
+> cocotb 侧已做过开销优化：热路径缓存句柄 + 复用 `RisingEdge` 触发、覆盖率改为
+> `COVERAGE=1` 才插桩、conftest 懒加载 coverage。详见 [test_core_binary_search.py](../testcases/test_core_binary_search.py)。
 
-结论：纯 C++ testbench 相对 cocotb 约快 **1–2 个数量级**；速度瓶颈分别是
-每周期一次 `$display` 打印（保留调试时）和 Verilator 仿真内核本身（剥离调试后）。
+### cocotb 连续运行 vs 纯 Verilator（50 次对比）
+
+| 运行方式 | 总耗时(含初始化) | 纯仿真时间 | 初始化/固定开销 | 有效吞吐 | 纯仿真吞吐 |
+|----------|---------|------|--------|---------|-----------|
+| cocotb RUNS=1（单次） | ~0.07 s | ~5.5 ms | ~65 ms（≈90%） | ~3.9 K cycles/s | ~51 K cycles/s |
+| cocotb RUNS=50 | ~0.34 s | ~263 ms | ~65 ms（≈20%） | ~41 K cycles/s | ~54 K cycles/s |
+| 纯 Verilator 50 次（`perf`） | 5.9 ms | 5.1 ms | 0.83 ms | 2.36 M cycles/s | 2.75 M cycles/s |
+| 纯 Verilator 50 次（`perf-nodb`） | 6.2 ms | 5.3 ms | 0.82 ms | 2.28 M cycles/s | 2.63 M cycles/s |
+
+> 本机为共享 WSL2，负载波动 ±40%，数值供量级参考；完整数据与一次 pytest 的耗时分解见
+> [lab_data.md](lab_data.md)。
+
+结论：
+
+- **cocotb 初始化是固定开销（~65 ms），与运行次数无关**：单次运行时约占 90%，
+  是绝对瓶颈；连续跑 50 次后稀释到 ~20%，有效吞吐约提升 **10×**
+  （~3.9K → ~41K cycles/s）。此后瓶颈变为每周期一次 Python/VPI 调度
+  （纯仿真 ~54K cycles/s，即 ~18.7 µs/cycle，已接近 `RisingEdge` 触发本身的
+  ~15 µs 下限），再增加迭代次数也没有提升。
+- **纯 C++ testbench 相对优化后的 cocotb 仍快约 50×**（1–2 个数量级）；其初始化仅
+  ~0.8ms，吞吐瓶颈是 Verilator 内核本身（~2.6–2.8 M cycles/s，约 300 ns/cycle）。
+- 当前 core.sv 的 `DEBUG_CORE` 监视器处于注释状态，`perf` 与 `perf-nodb` 几乎无差别；
+  重新打开监视器后，每周期 `$display` 会明显拖慢 `perf`。
+
+### 代表输出 — cocotb RUNS=50
+
+```
+142490.00ns INFO     cocotb.CoreTop                      [cocotb Profiling Result]  (50 iterations)
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Total Sim Cycles     : 14100 cycles (avg 282.0/iter)
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Pure Sim Dynamic Time: 262.537 ms
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Pure Sim Throughput  : 53706.6 cycles/s (18619.7 ns/cycle)
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Test Wall Time       : 271.485 ms
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Wall-Clock Throughput: 51936.5 cycles/s (19254.3 ns/cycle)
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Fixed Overhead/iter  : 0.179 ms (amortized over 50 runs)
+142490.00ns INFO     cocotb.CoreTop                      [cocotb] Passed               : 50/50
+142490.00ns INFO     cocotb.CoreTop                     ==============================================================
+```
+
+### 代表输出 — 纯 Verilator perf-nodb（--iters 50）
+
+```
+ [tb] RESULT             : PASS
+ [tb] Setup/Init Overhead: 0.001866 s
+ [tb] Total Process Wall Time: 0.005961 s
+ [tb] Pure Sim Throughput: 3420299.3 cycles/s (292.372 ns/cycle)
+ [tb] Wall-Clock Throughput: 2348512.9 cycles/s (425.801 ns/cycle)
+```

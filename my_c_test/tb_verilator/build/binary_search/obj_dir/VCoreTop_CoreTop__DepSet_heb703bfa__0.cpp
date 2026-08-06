@@ -5,19 +5,6 @@
 #include "VCoreTop__pch.h"
 #include "VCoreTop_CoreTop.h"
 
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__0\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.__Vdly__cycle_cnt = vlSelfRef.cycle_cnt;
-    vlSelfRef.__Vdly__cycle_cnt = ((IData)(vlSelfRef.rst)
-                                    ? 0U : ((IData)(1U) 
-                                            + vlSelfRef.cycle_cnt));
-    vlSelfRef.flush_d = ((~ (IData)(vlSelfRef.rst)) 
-                         & (IData)(vlSelfRef.flush));
-}
-
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__1(VCoreTop_CoreTop* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__1\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
@@ -115,6 +102,15 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__1(VCoreTop_Core
         vlSelfRef.u_decoder__DOT__u_regfile__DOT__regs[__VdlyDim0__u_decoder__DOT__u_regfile__DOT__regs__v32] 
             = __VdlyVal__u_decoder__DOT__u_regfile__DOT__regs__v32;
     }
+}
+
+VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5(VCoreTop_CoreTop* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__5\n"); );
+    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
+    auto& vlSelfRef = std::ref(*vlSelf).get();
+    // Body
+    vlSelfRef.flush_d = ((~ (IData)(vlSelfRef.rst)) 
+                         & (IData)(vlSelfRef.flush));
 }
 
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__7(VCoreTop_CoreTop* vlSelf) {
@@ -458,16 +454,8 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__9(VCoreTop_Core
     vlSelfRef.u_execute__DOT__extend = vlSelfRef.id_extend_imm;
 }
 
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__11(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__11\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.cycle_cnt = vlSelfRef.__Vdly__cycle_cnt;
-}
-
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__12(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__12\n"); );
+VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10(VCoreTop_CoreTop* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__10\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
@@ -476,6 +464,16 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_sequent__TOP__CoreTop__12(VCoreTop_Cor
 
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2(VCoreTop_CoreTop* vlSelf) {
     VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2\n"); );
+    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
+    auto& vlSelfRef = std::ref(*vlSelf).get();
+    // Body
+    vlSelfRef.u_if_id_reg__DOT__data_in = (((QData)((IData)(vlSelfRef.if_pc)) 
+                                            << 0x20U) 
+                                           | (QData)((IData)(vlSelfRef.if_instruction)));
+}
+
+VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3(VCoreTop_CoreTop* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
@@ -493,8 +491,8 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__2(VCoreTop_CoreTop
                                                        != (IData)(vlSelfRef.u_decoder__DOT__rs2))));
 }
 
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3\n"); );
+VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4(VCoreTop_CoreTop* vlSelf) {
+    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4\n"); );
     VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
     auto& vlSelfRef = std::ref(*vlSelf).get();
     // Body
@@ -508,16 +506,6 @@ VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__3(VCoreTop_CoreTop
            [vlSelfRef.u_decoder__DOT__u_regfile__DOT__raddr2]);
     vlSelfRef.u_decoder__DOT__rs1_data_decode = vlSelfRef.u_decoder__DOT__u_regfile__DOT__rdata1;
     vlSelfRef.u_decoder__DOT__rs2_data_decode = vlSelfRef.u_decoder__DOT__u_regfile__DOT__rdata2;
-}
-
-VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4(VCoreTop_CoreTop* vlSelf) {
-    VL_DEBUG_IF(VL_DBG_MSGF("+      VCoreTop_CoreTop___nba_comb__TOP__CoreTop__4\n"); );
-    VCoreTop__Syms* const __restrict vlSymsp VL_ATTR_UNUSED = vlSelf->vlSymsp;
-    auto& vlSelfRef = std::ref(*vlSelf).get();
-    // Body
-    vlSelfRef.u_if_id_reg__DOT__data_in = (((QData)((IData)(vlSelfRef.if_pc)) 
-                                            << 0x20U) 
-                                           | (QData)((IData)(vlSelfRef.if_instruction)));
 }
 
 VL_INLINE_OPT void VCoreTop_CoreTop___nba_comb__TOP__CoreTop__5(VCoreTop_CoreTop* vlSelf) {

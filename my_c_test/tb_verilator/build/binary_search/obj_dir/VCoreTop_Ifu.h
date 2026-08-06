@@ -38,7 +38,6 @@ class alignas(VL_CACHE_LINE_BYTES) VCoreTop_Ifu final : public VerilatedModule {
     IData/*31:0*/ PC_plus4;
     IData/*31:0*/ inst_PC_reg;
     IData/*31:0*/ next_PC;
-    IData/*31:0*/ __Vdly__PC_reg;
 
     // INTERNAL VARIABLES
     VCoreTop__Syms* const vlSymsp;

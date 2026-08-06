@@ -113,3 +113,13 @@ clean:
 
 clean-all: clean
 	rm -rf $(MY_C_TEST)/build
+
+# 在 Makefile 中增加一个单次公平基准测试目标
+.PHONY: perf-single perf-single-nodb
+
+# 只跑 1 次，模拟 cocotb 的真实单次工作流
+perf-single: build
+	$(BIN) --hex $(HEX) --iters 1 --expect-idx1 5 --expect-idx2 -1
+
+perf-single-nodb:
+	$(MAKE) NODEBUG=1 perf-single
