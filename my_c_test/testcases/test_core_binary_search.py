@@ -189,38 +189,7 @@ async def t_core_c_binary_search_test(dut):
     dut._log.info(f" [cocotb] Passed               : {n_pass}/{iters}")
     dut._log.info("==============================================================")
 
-"""    
-@cocotb.test()
-async def t_core_c_binary_search_test(dut):
 
-    TEST_DIR = Path(__file__).parent.parent
-    hex_path = TEST_DIR / "build" / "binary_search" / "test.hex"
-
-    fill_mem(dut, load_hex_file(hex_path))
-    await setup_dut(dut, start_pc=0)
-
-    max_cycles = 2000
-    done = False
-
-    for cycle in range(max_cycles):
-        await RisingEdge(dut.clk)
-        if read_dmem(dut, byte_addr=0x2000) == 1:
-            dut._log.info(f"Completion flag detected at cycle {cycle}.")
-            done = True
-            break
-
-    assert done, "Binary search test execution timed out!"
-
-    idx1 = read_dmem(dut, byte_addr=0x1000)
-    idx2 = read_dmem(dut, byte_addr=0x1004)
-
-    dut._log.info(f"Search for 23 returned index: {idx1} (Expected: 5)")
-    dut._log.info(f"Search for 99 returned index: {idx2} (Expected: -1)")
-
-    assert idx1 == 5, f"Search for existing element failed! Expected 5, got {idx1}"
-    assert idx2 == -1, f"Search for non-existent element failed! Expected -1, got {idx2}"
-    dut._log.info("Binary search test passed successfully!")
-"""
 
 class TestCore_SV:
     runner: Runner

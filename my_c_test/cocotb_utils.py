@@ -18,7 +18,8 @@ from cocotb_tools.runner import Runner, get_runner
 SIM = os.getenv("SIM", "verilator")
 
 # 读取环境变量 COVERAGE，判断是否开启覆盖率收集
-COVERAGE = os.getenv("COVERAGE", "0") == "1"
+COVERAGE = os.getenv("COVERAGE", "1") == "1"
+# 如果不使用coverage COVERAGE = os.getenv("COVERAGE", "0") == "1"
 # 支持从环境变量读取具体的覆盖率类型 (line / toggle / user / all)
 COVERAGE_TYPE = os.getenv("COVERAGE_TYPE", "all")
 

@@ -4,10 +4,14 @@
 
 | **方案**               | **仿真周期数** | **端到端用时 (REAL_TIME)** | **纯仿真耗时 (pure_sim_time)** | **纯仿真单周期耗时**       | **纯仿真吞吐率**             |
 | ---------------------- | -------------- | -------------------------- | ------------------------------ | -------------------------- | ---------------------------- |
-| **`cocotb_run_1`**     | $282$          | $80.00\text{ ms}$          | $5.54\text{ ms}$               | $19.00\ \mu\text{s/cycle}$ | $\sim 50.9\text{ Kcycles/s}$ |
-| **`cocotb_run_50`**    | $14,100$       | $340.00\text{ ms}$         | $264.13\text{ ms}$             | $18.73\ \mu\text{s/cycle}$ | $\sim 53.4\text{ Kcycles/s}$ |
 | **`verilator_run_1`**  | $282$          | $2.45\text{ ms}$           | $0.14\text{ ms}$               | $0.50\ \mu\text{s/cycle}$  | $\sim 2.30\text{ Mcycles/s}$ |
 | **`verilator_run_50`** | $14,100$       | $6.91\text{ ms}$           | $5.60\text{ ms}$               | $0.40\ \mu\text{s/cycle}$  | $\sim 2.75\text{ Mcycles/s}$ |
+| **`verilator_run_1_coverage`**  | $282$          | $25.420\text{ ms}$           | $1.42\text{ ms}$               | $5.00\ \mu\text{s/cycle}$  | $\sim 200\text{ Kcycles/s}$ |
+| **`verilator_run_50_coverage`**  | $14100$          | $92.28\text{ ms}$           | $65.98\text{ ms}$               | $4.710\ \mu\text{s/cycle}$  | $\sim 212\text{ Kcycles/s}$ |
+| **`cocotb_run_1`**     | $282$          | $80.00\text{ ms}$          | $5.70\text{ ms}$               | $20.00\ \mu\text{s/cycle}$ | $\sim 549.3\text{ Kcycles/s}$ |
+| **`cocotb_run_50`**    | $14,100$       | $340.00\text{ ms}$         | $264.13\text{ ms}$             | $18.73\ \mu\text{s/cycle}$ | $\sim 53.4\text{ Kcycles/s}$ |
+| **`cocotb_run_1_coverage`**     | $282$          | $80.00\text{ ms}$          | $7.50\text{ ms}$               | $26.6\ \mu\text{s/cycle}$ | $\sim 37.56\text{ Kcycles/s}$ |
+| **`cocotb_run_50_coverage`**    | $14,100$       | $450.00\text{ ms}$         | $361.256\text{ ms}$             | $25.621\ \mu\text{s/cycle}$ | $\sim 39.03\text{ Kcycles/s}$ |
 
 #### 性能差距（cocotb / Verilator）
 

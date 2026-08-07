@@ -308,6 +308,14 @@ int main(int argc, char** argv) {
     printf("--------------------------------------------------------------\n");
 
     g_top->final();
+
+    // === 新增：如果编译时开启了 --coverage，把数据写盘 ===
+#if VM_COVERAGE
+    Verilated::threadContextp()->coveragep()->write("coverage.dat");
+    printf(" [tb] Coverage data written to: coverage.dat\n");
+#endif
+
+    
     delete g_top;
     delete g_ctx;
     return all_pass ? 0 : 1;
