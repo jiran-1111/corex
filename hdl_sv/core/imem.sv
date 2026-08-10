@@ -14,10 +14,12 @@
 
 module IMem #(
     parameter int DATA_WIDTH = 32, // 指令宽度
-    parameter int SIZE_BYTES = 16384  //存储器的总容量 
+    parameter int SIZE_BYTES = 16384,  //存储器的总容量
+    parameter bit HAS_HOLD = 0     // 是否启用 hold 门控（流水线 stall 时冻结 rdata_q）
 ) ( // 端口列表 对外接口
     input logic clk,  // 时钟输入
     input logic rst,  // 同步复位输入
+    input logic hold, // HAS_HOLD=1 时，hold=1 则冻结 rdata_q（组合信号，同一拍生效）
     IBusIf.slave ibus
 );
 
@@ -47,8 +49,10 @@ module IMem #(
     // Read data from memory on request.
     // No reset to enable Vivado BRAM optional output register inference for
     // better resource utilization.
+    // hold 门控：流水线 stall 时冻结 rdata_q，避免采样冻结的 PC 对应地址而
+    // 覆盖 IF/ID 端等待的指令（PC 与指令错位）。
     always_ff @(posedge clk) begin
-        if (ibus.req && gnt) begin
+        if (ibus.req && gnt && (!HAS_HOLD || !hold)) begin
             rdata_q <= mem[mem_addr];
         end
     end
@@ -71,10 +75,14 @@ endmodule
 module IMemTop #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
-    parameter int SIZE_BYTES = 16384
+    parameter int SIZE_BYTES = 16384,
+    parameter bit HAS_HOLD = 0
 ) (
     input logic clk,
     input logic rst,
+
+    // Hold gate (only active when HAS_HOLD=1)
+    input logic hold,
 
     // Address request
     input logic req,
@@ -100,10 +108,12 @@ module IMemTop #(
 
     IMem #(
         .DATA_WIDTH(DATA_WIDTH),
-        .SIZE_BYTES(SIZE_BYTES)
+        .SIZE_BYTES(SIZE_BYTES),
+        .HAS_HOLD(HAS_HOLD)
     ) imem (
         .clk(clk),
         .rst(rst),
+        .hold(hold),
         .ibus(ibus.slave)
     );
 
