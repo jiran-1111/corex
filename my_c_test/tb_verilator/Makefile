@@ -53,7 +53,9 @@ VFLAGS := --cc --exe --build --top-module $(TOP) \
           -Wno-fatal -Wno-lint -Wno-WIDTH -Wno-UNUSEDSIGNAL \
           -Wno-UNUSEDPARAM -Wno-VARHIDDEN -Wno-CASEINCOMPLETE \
           --Mdir $(OBJ_DIR) \
-          $(COV_FLAGS)
+          $(COV_FLAGS) \
+		  -CFLAGS "-O3 -flto -fno-stack-protector" \
+          -LDFLAGS "-O3 -flto"
 
 ifneq ($(NODEBUG),1)
 VFLAGS += --timing
