@@ -1,6 +1,6 @@
 # corex
 
-该项目实现了一个RV32I指令的三级流水线，通过cocotb和c语言程序进行测试。
+该项目实现了一个RV32I指令的五级流水线，通过cocotb和c语言程序进行测试。
 
 ## setup-conda环境
 
@@ -75,6 +75,8 @@ SIM=verilator python3 -m pytest -v -s sim/unit/core/test_decoder.py
 较为重要的测试
 
 - test_core_lzq
+
+由于有些模块的测试是初期编写（如test_ifu_all.py），由于端口名不一致有可能无法运行，优先运行test_core_lzq.py和test_core_all.py
 
 ### 2、c语言测试
 ```bash

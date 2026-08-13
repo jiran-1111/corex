@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-COREX（Co-modeling RISC-V Example Core）是一个用 SystemVerilog 实现的 **RV32I 三级流水线 CPU**，由北京大学微处理器研发中心（MPRC）开发。验证采用 **cocotb + Verilator** 进行单元测试，并使用**交叉编译的 C 程序**进行集成测试。
+COREX（Co-modeling RISC-V Example Core）是一个用 SystemVerilog 实现的 **RV32I 五级流水线 CPU**，由北京大学微处理器研发中心（MPRC）开发。验证采用 **cocotb + Verilator** 进行单元测试，并使用**交叉编译的 C 程序**进行集成测试。
 
 ## 构建与测试命令
 
@@ -36,38 +36,42 @@ make clean               # 清理构建产物
 
 ## 架构设计
 
-### 流水线结构（三级）
+### 流水线结构（五级）
 
 ```
-IF（取指）  →  ID/EX（译码 + 执行）  →  MEM/WB（访存 + 写回）
+IF（取指） → ID（译码 + 寄存器读取） → EX（ALU + 分支/JALR 判定） → MEM（数据访存） → WB（写回）
 ```
 
-- **IF 阶段**（[ifu.sv](hdl_sv/core/ifu.sv)）：PC 寄存器、下一 PC 多路选择（处理分支、JAL、JALR）、通过 `IBusIf` 接口从指令存储器取指。
-- **ID/EX 阶段**：译码和执行在**同一周期**内完成（无 ID/EX 流水线寄存器）。
+- **IF 阶段**（[ifu.sv](hdl_sv/core/ifu.sv)）：PC 寄存器、下一 PC 多路选择（处理分支、JAL、JALR）、通过 `IBusIf` 接口从指令存储器取指。IMem 为同步读（`rdata` 滞后 `addr` 一拍），因此 `PC_reg` 超前 `inst_PC_reg` 一拍，IF 输出端总有一条"在途"指令——这是下文 2 周期 flush 窗口的根因。
+- **ID 阶段**：译码 + 寄存器文件读取。
   - [decoder.sv](hdl_sv/core/decoder.sv)：指令字段提取、立即数生成（I/S/B/U/J 类型）、带写回旁路的寄存器文件读取、分支/JAL 目标地址计算、存储字节使能生成。
   - [control_unit.sv](hdl_sv/core/control_unit.sv)：根据 opcode 生成主控制信号——ALUOp、操作数选择、extend_sel、regWrite、memRead/Write、next_PC_sel。
-  - [execute.sv](hdl_sv/core/execute.sv)：ALU 控制编码、操作数 A/B 多路选择（rs1/PC/PC+4/0；rs2/imm）、ALU 实例化、JALR 目标地址计算。
-  - [ALU.sv](hdl_sv/core/ALU.sv)：通过 6 位 ALU_Control 支持所有 RV32I 算术/逻辑/移位/比较操作。
-- **MEM/WB 阶段**（[dmem.sv](hdl_sv/core/dmem.sv)）：带字节使能（`DBusIf`）的数据存储器读写，写回多路选择（访存数据 vs ALU 结果）。
+- **EX 阶段**（[execute.sv](hdl_sv/core/execute.sv) + [ALU.sv](hdl_sv/core/ALU.sv)）：ALU 控制编码、操作数 A/B 多路选择（rs1/PC/PC+4/0；rs2/imm）、ALU 运算、分支成立判定（`branch_taken`）、JALR 目标计算（`JALR_target = (rs1 + imm) & ~1`）。
+- **MEM 阶段**（[dmem.sv](hdl_sv/core/dmem.sv)）：带字节使能（`DBusIf`）的数据存储器读写。
+- **WB 阶段**：写回多路选择（访存数据 vs ALU 结果），写入寄存器文件。
 
 ### 流水线寄存器（[pipeline_reg.sv](hdl_sv/core/pipeline_reg.sv)）
 
 通用参数化模块，控制通路与数据通路分离：
 - **控制通路**：支持复位和刷新（优先级：reset > flush > enable）。
-- **数据通路**：无复位/刷新（PPA 优化）；数据有效性由控制通路保证。
-- 两个实例：**IF/ID**（IF 与 ID 之间）和 **EX/MEM**（EX 与 MEM 之间）。
+- **数据通路**：无复位/刷新（PPA 优化）；数据有效性由控制通路（valid 位）保证。
+- 四个实例：**IF/ID**（`u_if_id_reg`）、**ID/EX**（`u_id_ex_reg`）、**EX/MEM**（`u_ex_mem_reg`）、**MEM/WB**（`u_mem_wb_reg`）。IF/ID、ID/EX 支持 flush；EX/MEM、MEM/WB 无 flush（其有效性与写使能由 valid 位逐级门控，见 [core.sv](hdl_sv/core/core.sv)）。
 
 ### 刷新与停顿
 
-- `flush` 在以下情况置位：分支跳转成功（`pc_sel=01 & branch_taken`）、JAL（`pc_sel=10`）、JALR（`pc_sel=11`）。
-- `flush` 通过 `flush_d` 扩展 1 个周期，为 `real_if_id_flush` 形成 2 周期窗口——这覆盖了 EX 阶段分支解析结果到达 IF/ID 寄存器的延迟。
-- `stall` 目前固定为 `1'b0`（未实现流水线停顿）。
-- 刷新时，IF/ID 寄存器控制输出变为 0，[core.sv](hdl_sv/core/core.sv) 向译码阶段注入 `NOP`（`addi x0, x0, 0`）。
+- **`stall` = Load-Use 冒险**（已实现）：EX 阶段的 Load 指令（`id_ex_ctrl_out.mem_read`）目标寄存器 `rd` 被 ID 阶段指令作为源寄存器使用（`rd != x0` 且等于 `rs1`/`rs2`）→ 停顿 1 拍：IF/ID `en=0` 保持，ID/EX 被 `id_ex_flush` 清空。同时 `stall` 经 IMem 的 `hold` 门控组合冻结 `rdata_q`，防止 PC/inst_PC 错位（见 [ifu.sv](hdl_sv/core/ifu.sv)）。
+- **`id_flush`**：JAL 在 ID 阶段解析（`pc_sel=10`）。
+- **`ex_flush`**：分支成立（`pc_sel=01 & branch_taken`）或 JALR（`pc_sel=11`）在 EX 阶段解析。
+- `flush_any = id_flush || ex_flush`；`flush_d` 为 `flush_any` 延迟 1 周期。
+- **IF/ID flush = `flush_any || flush_d`（2 周期窗口）**：IMem 同步读使 `PC_reg` 超前 `inst_PC_reg` 一拍，跳转解析沿之后还有一条在途指令下一拍才到达 IF/ID 锁存点，需延迟窗口 `flush_d` 覆盖。
+- **ID/EX flush = `ex_flush || stall`（1 周期）**：其锁存的陈旧指令与跳转解析同拍到达，`ex_flush` 即可清除，无需扩展。
+- 刷新时，流水线寄存器控制输出变为 0，[core.sv](hdl_sv/core/core.sv) 向译码阶段注入 `NOP`（`addi x0, x0, 0`）。
 
 ### 寄存器文件与旁路
 
 - [reg_file.sv](hdl_sv/core/reg_file.sv)：32×32 位，两个组合读端口，一个同步写端口。x0 硬连线为零。
-- **写回旁路**（[decoder.sv](hdl_sv/core/decoder.sv)）：当 `rs1`/`rs2` 与 WB 阶段的 `write_reg` 匹配（且写使能有效）时，数据直接转发——避免了写后读（RAW）的一周期停顿。
+- **写回旁路**（[decoder.sv](hdl_sv/core/decoder.sv)）：当 `rs1`/`rs2` 与 WB 阶段的 `write_reg` 匹配（且写使能有效）时，数据直接转发——避免写后读（RAW）的一周期停顿。
+- **EX 阶段转发**（[core.sv](hdl_sv/core/core.sv)）：源操作数优先级 **EX/MEM 寄存器的 ALU 结果（Load 除外） > MEM/WB 寄存器的写回数据 > ID/EX 默认值**。EX/MEM 转发显式排除 Load（数据尚未就绪），该场景由 Load-Use stall 处理。
 
 ### 存储器接口
 
@@ -112,3 +116,10 @@ ifu.sv → core.sv
 - `sim_build/` 是 Verilator 构建输出目录，已被 gitignore 忽略。
 - `CoreTop` 的 `program_address` 输入用于设置初始 PC；在 `start` 脉冲或复位时锁存。
 - 所有 HDL 模块的作者信息记录在文件头部注释中（Ran Ji、Chun Yang、Ziqing Lin）。
+- 由于有些模块的测试是初期编写（如test_ifu_all.py），由于端口名不一致有可能无法运行，测试时优先运行test_core_lzq.py和test_core_all.py，然后运行c语言测试程序
+
+
+## 配置文件自我维护规则 (Self-Maintenance)
+
+- **更新机制**：每当项目中新增了核心架构变动、新的常用命令（如 Makefile 目标）、或新的工程规范时，请**主动更新本 `CLAUDE.md` 文件**。
+- **添加新指令**：当我对你说 *“记住这个操作/以后都这么做”* 时，请将相关流程作为规范追加到本文件的 `Custom Instructions` 章节中。

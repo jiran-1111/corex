@@ -143,10 +143,10 @@ async def t_ifu_stall_long_duration(dut):
     await FallingEdge(dut.clk)
     dut.stall.value = 0
     await RisingEdge(dut.clk)
-    
+
     # Delta delay to allow signals to propagate after the clock edge
     await Timer(1, unit="ps")
-    
+
     expected_next_pc = locked_pc + 4
     assert is_pc_correct(dut, expected_next_pc)
 

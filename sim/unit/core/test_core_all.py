@@ -440,7 +440,7 @@ class TestCore_SV:
             HDL_SV_DIR / "core" / "ALU.sv",
             HDL_SV_DIR / "core" / "execute.sv",
             HDL_SV_DIR / "core" / "ifu.sv",
-            HDL_SV_DIR / "core" / "core_new.sv",
+            HDL_SV_DIR / "core" / "core.sv",
         ]
         cls.hdl_top = "CoreTop"
         cls.runner = setup_runner(sources=sources, hdl_toplevel=cls.hdl_top)

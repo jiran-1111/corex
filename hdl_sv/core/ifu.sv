@@ -7,6 +7,7 @@
  * Author: Ran Ji
  */
 
+// 
 module Ifu #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 32
@@ -62,7 +63,10 @@ module Ifu #(
     end
 
     // Instruction memory instance
-    // hold=stall：load-use 冒险停顿时组合冻结 rdata_q，防止 PC 与指令错位
+    // hold=stall：流水线停顿时组合冻结 rdata_q。因为 PC_reg 超前 inst_PC_reg 一拍，
+    // 停顿时 PC_reg 冻结在 X+4、inst_PC_reg 冻结在 X，若 rdata_q 继续随 req 锁存，
+    // 会锁存 mem[X+4]（下一条指令），与 inst_PC=X 错位并覆盖 IF/ID 等待的指令。
+    // hold 必须由组合逻辑驱动（req 是时序信号晚一拍生效，无法在一拍 stall 内抑制）。
     IMemTop #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -80,14 +84,15 @@ module Ifu #(
     );
 
     // Instruction fetch request control
+    // rst：复位后无取指请求（下一拍才置 1，保证复位撤销后 PC 先稳定一拍）；
+    //      其余时刻取指请求保持有效（start 时自动有效；stall 时流水线暂停，
+    //      由下方 IMem 的 hold 门控组合冻结 rdata_q，而不是拉低 req——因为
+    //      req 是时序信号晚一拍生效，无法在一拍 stall 内及时抑制锁存）。
     always_ff @(posedge clk) begin
-        if (rst) begin
+        if (rst)
             fetch <= 1'b0;
-        end else if (start || stall) begin
+        else
             fetch <= 1'b1;
-        end else begin
-            fetch <= 1'b1;
-        end
     end
 
     // Program Counter (PC) register logic
