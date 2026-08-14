@@ -198,13 +198,13 @@ module CoreTop #(
         .start           (start),
         .stall           (stall),
         .program_address (program_address),
-        .id_pc_sel       (id_pc_sel),
+        .id_pc_sel       (id_pc_sel), // ID阶段跳转信号 JAL
         .id_jal_target   (id_jal_target),
-        .ex_pc_sel       (id_ex_ctrl_out.pc_sel),
+        .ex_pc_sel       (id_ex_ctrl_out.pc_sel),// EX阶段跳转信号 Branch/JALR
         .ex_branch_taken (ex_branch_taken),
         .ex_branch_target(id_ex_data_out.branch_target),
         .ex_jalr_target  (ex_jalr_target),
-        .instruction     (if_instruction),
+        .instruction     (if_instruction), //output 
         .inst_PC         (if_pc),
         .valid           (if_valid)
     );
@@ -236,7 +236,7 @@ module CoreTop #(
         .clk        (clk),
         .rst        (rst),
         .opcode     (id_opcode),
-        .ALUOp      (id_alu_op),
+        .ALUOp      (id_alu_op),//output
         .operand_A  (id_operand_a),
         .operand_B  (id_operand_b),
         .extend_sel (id_extend_sel),
@@ -260,7 +260,7 @@ module CoreTop #(
         .reg_write    (wb_reg_write),
         .write_reg    (wb_write_reg),
         .write_data   (wb_write_data),
-        .opcode       (id_opcode),
+        .opcode       (id_opcode),//output
         .funct7       (id_funct7),
         .funct3       (id_funct3),
         .rs1          (id_rs1),
@@ -325,13 +325,13 @@ module CoreTop #(
         if (mem_ctrl_out && mem_data_out.reg_write &&
             (mem_data_out.rd != 5'd0) && (mem_data_out.rd == id_ex_data_out.rs1) &&
             !mem_data_out.mem_read)
-            ex_rs1_data_fwd = mem_data_out.alu_result;
+            ex_rs1_data_fwd = mem_data_out.alu_result; //rs1 从EX/MEM寄存器前推（前一条指令正在MEM）
         else if (mem_wb_ctrl_out && mem_wb_data_out.reg_write &&
                  (mem_wb_data_out.rd != 5'd0) && (mem_wb_data_out.rd == id_ex_data_out.rs1))
-            ex_rs1_data_fwd = wb_write_data;
+            ex_rs1_data_fwd = wb_write_data;//rs1 从MEM/WB寄存器前推（前两条指令正在MEM）
         else
             ex_rs1_data_fwd = id_ex_data_out.rs1_data;
-
+    
         if (mem_ctrl_out && mem_data_out.reg_write &&
             (mem_data_out.rd != 5'd0) && (mem_data_out.rd == id_ex_data_out.rs2) &&
             !mem_data_out.mem_read)
@@ -360,7 +360,7 @@ module CoreTop #(
         .regRead_2    (ex_rs2_data_fwd),
         .extend       (id_ex_data_out.extend_imm),
         .branch_op    (id_ex_ctrl_out.branch_op),
-        .ALU_result   (ex_alu_result),
+        .ALU_result   (ex_alu_result),//output
         .branch_taken (ex_branch_taken),
         .JALR_target  (ex_jalr_target)
     );
