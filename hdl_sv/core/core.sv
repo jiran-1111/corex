@@ -175,15 +175,16 @@ module CoreTop #(
     // IMem 为同步读（rdata 滞后 addr 一拍），跳转解析的那个周期 IF 已按顺序
     // 取到跳转后的下一条（陈旧）指令，它会在下一周期才到达 IF/ID 锁存点，
     // 因此 IF/ID 需要 2 周期 flush 窗口（当前周期 + flush_d 延迟周期）。
+
     // ID/EX 寄存器锁存的指令已在跳转解析周期被覆盖，仅需 1 周期 flush。
     assign flush_any = id_flush || ex_flush;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) flush_d <= 1'b0;
-        else     flush_d <= flush_any;
+        else     flush_d <= flush_any;//延迟 1 周期，形成 2 周期 flush 窗口
     end
 
-    assign if_id_flush = flush_any || flush_d;
+    assign if_id_flush = flush_any || flush_d;//两周期窗口
     assign id_ex_flush = ex_flush || stall;
 
     // =========================================================================
