@@ -102,3 +102,7 @@ make run TEST=adder
 - 3、运行 make run TEST=name 进行验证
 
 
+## 六、旧的测试
+
+旧的cocotb测试脚本放在my_c_test/old/testcases中，其中部分有文档中对覆盖率和仿真效率的代码
+

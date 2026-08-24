@@ -41,8 +41,8 @@ module ControlUnit #(
     localparam [6:0] BRANCH  = 7'b1100011;
     localparam [6:0] JALR    = 7'b1100111;
     localparam [6:0] JAL     = 7'b1101111;
-    localparam [6:0] FENCES  = 7'b0001111;
-    localparam [6:0] SYSCALL = 7'b1110011;
+    localparam [6:0] FENCES  = 7'b0001111;  // FENCE：不匹配上述 case，控制信号全 0，作 NOP 流过
+    localparam [6:0] SYSCALL = 7'b1110011;  // ECALL/EBREAK：同样作 NOP（本设计无异常处理）
 
     // Control signal assignments
     //assign jump_flush = (opcode == 7'b1101111) || (opcode == 7'b1100111) ;   // JAL JALR 

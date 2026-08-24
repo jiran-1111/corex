@@ -47,7 +47,7 @@ IF（取指） → ID（译码 + 寄存器读取） → EX（ALU + 分支/JALR �
   - [decoder.sv](hdl_sv/core/decoder.sv)：指令字段提取、立即数生成（I/S/B/U/J 类型）、带写回旁路的寄存器文件读取、分支/JAL 目标地址计算、存储字节使能生成。
   - [control_unit.sv](hdl_sv/core/control_unit.sv)：根据 opcode 生成主控制信号——ALUOp、操作数选择、extend_sel、regWrite、memRead/Write、next_PC_sel。
 - **EX 阶段**（[execute.sv](hdl_sv/core/execute.sv) + [ALU.sv](hdl_sv/core/ALU.sv)）：ALU 控制编码、操作数 A/B 多路选择（rs1/PC/PC+4/0；rs2/imm）、ALU 运算、分支成立判定（`branch_taken`）、JALR 目标计算（`JALR_target = (rs1 + imm) & ~1`）。
-- **MEM 阶段**（[dmem.sv](hdl_sv/core/dmem.sv)）：带字节使能（`DBusIf`）的数据存储器读写。
+- **MEM 阶段**（[dmem.sv](hdl_sv/core/dmem.sv) + [core.sv](hdl_sv/core/core.sv) 的 MEM 段组合逻辑）：带字节使能（`DBusIf`）的数据存储器读写。**支持完整访存宽度**：Load 按 funct3 与地址低位选字节/半字并符号/零扩展（LB/LBU/LH/LHU/LW）；Store 按地址低位计算 `wbe` 与写数据字节偏移（SB/SH/SW）。funct3 随流水传到 MEM（`ex_mem_data_t.funct3`）。
 - **WB 阶段**：写回多路选择（访存数据 vs ALU 结果），写入寄存器文件。
 
 ### 流水线寄存器（[pipeline_reg.sv](hdl_sv/core/pipeline_reg.sv)）
@@ -81,10 +81,10 @@ IF（取指） → ID（译码 + 寄存器读取） → EX（ALU + 分支/JALR �
 
 ### C 测试流程
 
-1. [my_c_test/src/](my_c_test/src/) 中的 C 源码 → 使用 `riscv64-unknown-elf-gcc` 交叉编译（`-march=rv32i -mabi=ilp32 -nostdlib`）。
-2. 链接 [bsp/crt0.s](my_c_test/bsp/crt0.s)（设置栈指针、调用 `main`、返回后死循环）和 [bsp/link.ld](my_c_test/bsp/link.ld)（程序起始地址 `0x00000000`）。
-3. `objcopy -O verilog` 生成 hex 文件。
-4. [my_c_test/testcases/test_core_program.py](my_c_test/testcases/test_core_program.py) 通用脚本通过层次化路径（`dut.u_ifu.IMem.imem.mem`）把 hex 加载到 IMem，运行核心，轮询 `0x2000` 完成标志后检查 DMem 结果。所有 C 程序共用一个脚本（内置 `PROGRAMS` 注册表），不再为每个程序单独写 cocotb 脚本。
+1. [my_c_test/src/](my_c_test/src/) 中的 C 源码 → 使用 `riscv64-unknown-elf-gcc` 交叉编译（`-march=rv32i -mabi=ilp32 -O0 -ffreestanding`）。**可 `#include <stdio.h>`**——[bsp/libc/](my_c_test/bsp/libc/) 提供了最小 `printf`（支持 `%d %u %x %X %c %s %%`），输出写入 DMem `0x2800` 起的控制台缓冲。
+2. 链接 [bsp/crt0.s](my_c_test/bsp/crt0.s)（设置栈指针 `0x4000`、调用 `main`、返回后写 `0x2000=1` 完成标志）和 [bsp/link.ld](my_c_test/bsp/link.ld)（程序起始地址 `0x00000000`），尾部 `-nostdlib -lgcc`（libgcc 提供软件乘法 `__mulsi3` 等，RV32I 无 M 扩展）。
+3. `objcopy -O verilog` 生成 hex 文件（含 `@address` 标记，text/rodata/data 连续排布）。
+4. [my_c_test/testcases/test_core_program.py](my_c_test/testcases/test_core_program.py) 通用脚本解析 `@address`，把**同一份镜像同时灌入 IMem 与 DMem**（IMem 取指令；DMem 提供字面量池/.data/.rodata——corex 的 IMem/DMem 地址空间独立，数据访问全走 DMem）。运行核心，轮询 `0x2000` 完成标志后检查结果：DMem 字或 `0x2800` 控制台字符串。所有 C 程序共用一个脚本（内置 `PROGRAMS` 注册表），不再为每个程序单独写 cocotb 脚本。
 
 ### 测试层次
 
@@ -106,25 +106,19 @@ ifu.sv → core.sv
 
 ## 添加新的 C 测试
 
-1. 编写 `my_c_test/src/<name>.c`——程序把结果写入 `0x1000` 起始的 DMem（例如 `*(volatile int*)0x1000 = result`），结束前写 `*(volatile int*)0x2000 = 1` 作完成标志。
-2. 在 `my_c_test/testcases/test_core_program.py` 的 `PROGRAMS` 注册表加一行：`"<name>": (<max_cycles>, {<字节地址>: <期望值>})`（期望值为 `list` 时从该地址起连续比对多个字）。**无需再写新的 cocotb 脚本**。
+1. 编写 `my_c_test/src/<name>.c`——结果有两种检查方式：
+   - 写 DMem：结果写入 `0x1000` 起始（如 `*(volatile int*)0x1000 = result`），结束前写 `*(volatile int*)0x2000 = 1`；
+   - 或直接 `printf(...)`（`#include <stdio.h>`），输出自动落到 `0x2800` 控制台缓冲。两者可混用。
+2. 在 `my_c_test/testcases/test_core_program.py` 的 `PROGRAMS` 注册表加一行：
+   - DMem 检查：`"<name>": (<max_cycles>, {<字节地址>: <期望值>})`（期望值为 `list` 时从该地址起连续比对多个字）；
+   - printf 检查：`"<name>": (<max_cycles>, {"console": "期望字符串"})`。
+   **无需再写新的 cocotb 脚本**。
 3. 运行 `make TEST=<name>` 编译，然后 `make run TEST=<name>` 运行。
 
 > 现有 22 个程序：10 个原始程序（adder/sum/jar/crc32/factorial/fibonacci/sort/binary_search/
-> soft_mul_bit/str_toggle）+ 12 个从 [c_test/](../c_test/) 三人（zsq/ljt/dim）程序适配而来
-> （zsq_* 5 个、ljt_* 6 个、dim_transform），适配源码在 `my_c_test/src/`。
-
-### C 程序编码约束（corex 兼容性，重要）
-
-- **初始化列表 → 改用逐个赋值**：`int data[4] = {7,2,5,1}` 在 `-O0` 下会编译成从「字面量池」
-  （literal pool，位于代码区/IMem）用 `lw` 加载，而 corex 的 IMem/DMem 分离使程序通过 DMem
-  读池子 → 读到全零。改为 `data[0]=7; data[1]=2; ...`（编译成 `li` 立即数）即可。
-- **避免字节存取（LBU/SB）**：corex 的字节访存不可靠（ljt_reverse 的 char 数组曾全部输出
-  同一个字符 'C'）。用 `int` 数组存字节值 + word 访问；需提取字节时按现有
-  [crc32.c](my_c_test/src/crc32.c) 模式 `(word >> (byte_offset * 8)) & 0xFF`。
-- **无 M 扩展**：变量乘法需软件 `multiply()`（参照 [factorial.c](my_c_test/src/factorial.c)）；
-  常量 `/2` 会被编译成移位，无碍。
-- **`-nostdlib`**：无 `printf`/stdio，打印改为把结果写 `0x1000` 起始的 DMem。
+> soft_mul_bit/str_toggle）+ 12 个来自 [c_test/](../c_test/) 三人（zsq/ljt/dim）的程序
+> （zsq_* 5 个、ljt_* 6 个、dim_transform）。其中 ljt_* 6 个为 **c_test 原始源码不改动**，
+> 直接经 printf 输出检查（验证字节访存与字面量池加载）。
 
 ## 注意事项
 
@@ -133,6 +127,8 @@ ifu.sv → core.sv
 - `CoreTop` 的 `program_address` 输入用于设置初始 PC；在 `start` 脉冲或复位时锁存。
 - 所有 HDL 模块的作者信息记录在文件头部注释中（Ran Ji、Chun Yang、Ziqing Lin）。
 - 由于有些模块的测试是初期编写（如test_ifu_all.py），由于端口名不一致有可能无法运行，测试时优先运行test_core_lzq.py和test_core_all.py，然后运行c语言测试程序
+- 指令集覆盖：**RV32I 已完整支持访存宽度**（LB/LBU/LH/LHU/LW + SB/SH/SW，字节使能按地址低位生成）。FENCE/ECALL/EBREAK 作 NOP 流过（无异常处理）。M 扩展未实现（乘法/除法用 libgcc 软件例程 `__mulsi3` 等，链接时 `-lgcc`）。
+- 已知预存在的单元测试缺陷（与 RTL 改动无关，未修复）：`sim/unit/core/test_decoder.py` 的 `t_decode_LUI`/`t_decode_AUIPC` 驱动 `extend_sel=1`（S 型编码）却断言 U 型立即数；`test_control_unit.py` 的 `t_ctrl_LUI`/`t_ctrl_AUIPC` 断言 `extend_sel==1`（RTL 实际为 `3'b011`）及 `t_ctrl_unsupported_opcode`。均为初期测试对 `extend_sel` 编码的错误假设。
 
 
 ## 配置文件自我维护规则 (Self-Maintenance)

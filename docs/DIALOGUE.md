@@ -137,3 +137,38 @@
   > 请给我修改一下dialogue-log这个skill，我觉得这个skill写得文档不是很好，我希望文档是按照天为章节，以我提出或agent解决的问题为小节，然后把agent的对话进行整理的文档，比如20260815这天，提出了什么问题1、问题2、解决了什么问题，我的prompt是什么，agent的回答是什么，进行整理
 - **Agent 回答**：三个文件改动：①重写 [SKILL.md](.claude/skills/dialogue-log/SKILL.md) 为 `## 日期` 分章 → `### 问题` 分节，每节字段式记录**问题描述 / 我的 Prompt / Agent 回答**，并明确 Prompt 真实性要求（引用用户原话，IDE 触发轮写客观触发上下文，不虚构）；②[dialogue.py](.claude/skills/dialogue-log/dialogue.py) 配套更新（DOC_HEADER、注释、append 提示语从"分类"改"问题小节"，digest 新增 `--full` 保留完整原文）；③迁移已有 [DIALOGUE.md](corex/docs/DIALOGUE.md) 的 08-13（8 问）、08-14（5 问）两章为问题格式，并从历史 transcript 逐问提取**真实原始 prompt**（fetch、hold 冗余、2 周期 flush、stall vs flush、PipelineReg、EX 前推等），保证迁移不编造。验证：append 合并逻辑与新格式兼容——新问题追加到指定日期末尾、同名问题并入已有小节、往中间章节追加不越界。**经验**：文档按"问题 + 用户原话 prompt + 回答"组织，比按抽象分类更能还原对话脉络；迁移历史日志时，transcript 里 IDE 触发的轮次以客观触发上下文描述，绝不用旧日志内容以外的东西编造 prompt。
 
+
+---
+
+## 2026-08-24
+
+### 问题：core_lzq/test.py 是什么？用了它是不是就不用为每个 C 程序写 cocotb 脚本了？
+- **问题**：用户看到 core_lzq/test.py 这个看似通用的测试文件，想知道它是否意味着自己的 C 程序测试不再需要逐程序写 cocotb 脚本（自己的脚本在 corex/my_c_test/testcases/test_core_adder.py）。
+- **我的 Prompt**：
+  > 请给我讲解一下test.py这个代码文件，如果用了这个代码是不是就可以不用给我的c程序测试写cocotb的脚本了啊，我的c程序的cocotb脚本在corex/my_c_test/testcases/test_core_adder.py
+- **Agent 回答**：test.py 是**通用 C 程序测试框架**——只有一个测试函数 `t_core`，靠环境变量参数化（`MEM_PATH` hex 路径、`EXPECTED_BUFFER` 期望输出、`CORETEST_MAX_CYCLES` 超时）：编译 RTL 后用 `$readmemh` 直接加载 hex，跑时钟循环等程序往 `TOHOST_ADDR(0x2000)` 写 `0x77`（tohost 握手），再比对 buffer 内容。**思路正确**：这类模式确实免去逐程序写脚本。但 test.py 本身不能直接用：①它测的是另一套 RTL（`riscv_pkg/idu/exu/alu`，不是 corex 的 control_unit/decoder/execute/ALU 五级流水线，`CoreTop` 都不一样）；②依赖缺失（`from ..cocotb_utils import ...` 在 pku_workspace 根不存在、默认 `MEM_PATH` 指向的 `core_testframe` 也不存在）；③运行约定不同（test.py 要求写 tohost=0x77 + 结果 buffer，而 corex 程序是写 `0x100` 结果、无握手）。要在 corex 达到同样效果两条路：方案 A 把样板抽到 [cocotb_utils.py](corex/my_c_test/cocotb_utils.py) 公共辅助、逐程序脚本缩到十几行；方案 B 加 tohost 约定（crt0 写 `0x2000` + 结果写固定 buffer）后用 `$readmemh` + 单个通用 `t_core`，新 C 程序一行 cocotb 都不用写。
+
+### 问题：如何仿照 test.py 让 C 程序测试不再逐程序写脚本？（10 脚本 → 1 通用脚本）
+- **问题**：用户采纳了通用框架思路，要求仿照 test.py 针对自己的 RTL 改造，不再每个 C 程序写新 cocotb 脚本。
+- **我的 Prompt**：
+  > 我希望可以仿照test.py，不要每次都写一个新的cocotb测试脚本，对test.py针对我的RTL进行一些修改，我的c程序代码都在corex/my_c_test/src，我的RTL设计都在corex/hdl_sv/core，请修改
+- **Agent 回答**：进计划模式，两个探索 agent 分别摸清 RTL 顶层与 C 测试基础设施。关键发现：**10 个 C 程序里 9 个已遵循统一约定**——结果写 `0x1000` 起始 DMem、结束前写 `0x2000=1` 作 done 标志（只有 adder 是特例：写 `0x100`、无 done），与 test.py 的 tohost 握手本质相同；10 个脚本的差异收敛到「hex 路径 + max_cycles + 检查项」三个参数。实施：新建 [test_core_program.py](corex/my_c_test/testcases/test_core_program.py)——内置 `PROGRAMS` 注册表（程序名 → `(max_cycles, {字节地址: 期望值})`，int=单字、list=连续多字），单个 `t_core_program` 从环境变量 `CORETEST_PROGRAM` 取程序名定位 hex → 填充 IMem → 轮询 `0x2000==1` → 比对；`@pytest.mark.parametrize` 一个用例跑全部程序、RTL 只编译一次。改 adder.c 统一约定；Makefile `run`/`run-all` 改走新脚本；删 10 个旧脚本；同步 CLAUDE.md/README.md。踩坑：`soft_mul_bit` 注册表里从旧脚本注释抄的 golden 值（`0x006AEBBC`/`0x3D17CDBC`）本身是错的，正确 product=`0x6AE9BC`、checksum=`0x3DFDBFBC`，改为 `soft_mul_expected()` 动态计算。验证：`make run TEST=sum`/`adder` 通过、`make run-all` **10 passed**。**经验**：这类期望值不该手抄进注册表，能动态算就动态算。
+
+### 问题：c_test 三人的 12 个程序如何全部跑通并集成到 my_c_test？
+- **问题**：c_test 文件夹下有三个人（zsq/ljt/dim）提供的 C 程序测试，用户希望全部跑通、有问题的针对性修改、集成进 my_c_test。
+- **我的 Prompt**：
+  > c_test文件夹下有三个人提供的c程序测试，我想你把所有的程序测试都跑通，如果有有问题的程序可以针对性进行修改，然后把测试程序加入我的my_c_test文件夹
+- **Agent 回答**：逐个读完 12 个程序后先编译运行：zsq 5 个、ljt_factorial、dim_transform 共 7 个直接通过，ljt 其余 5 个失败，逐一溯源（此阶段是**改写源码适配 corex 裸机约定**，RTL 未动）：①**字面量池**（ljt_matrix/sort/binary_search/crc32）：`int data[4]={...}` 初始化列表在 -O0 下编译成从代码区池子 `lw` 加载，而 corex 数据访问全走 DMem（全零）→ 改逐个赋值（编译成立即数 `li`）；②**字节访存不可靠**（ljt_reverse 输出全 'C'、crc32 值错）：改 int 数组存字符 ASCII + word 访问绕过 LB/SB；③**RV32I 无 M 扩展**（matrix/factorial）：乘法改软件 multiply()（参照已有 factorial.c）；④**done 地址越界**（zsq 写 `0x8000`，超出 16KB DMem）：统一改 `0x2000`；⑤**-nostdlib 无 printf**：ljt 全部改为写 `0x1000` + `0x2000=1`。验证 `make run-all` **22 passed**。**经验**：corex 的 IMem/DMem 地址空间分离 + DMem 不预加载 .rodata/.data，导致初始化列表读全零——这是后续要根治的核心矛盾。
+
+### 问题：为什么 ljt 的测试都有问题？是访存指令不同 / RTL 没实现 LB/SB / stdio.h 的问题吗？
+- **问题**：用户没理解 ljt 测试为何都失败，怀疑三件事：用了不同访存指令、RTL 没实现 LB/SB、或 `#include <stdio.h>` 的问题，要求整理 RTL 实际实现的指令。
+- **我的 Prompt**：
+  > 我没理解为什么ljt的测试都有问题，是因为他使用的是不同的访存指令吗，我的rtl好像没有实现LB/SB,请给我整理一下我的RTL实现的指令有什么，还是#include<studio.h>的问题
+- **Agent 回答**：ljt 失败**不是单一原因，而是三个独立问题叠加**：①字面量池（matrix/sort/binary_search）；②RTL 字节访存 LB/SB 实现有缺陷（reverse/crc32）；③stdio.h/printf 环境缺失（裸机工具链无 newlib，原程序连编译都过不去）。整理 RTL 实际指令：R/I/U/B/J 型算术逻辑跳转全正确；Load 仅 **LW** 正确、Store 仅 **SW** 正确；**LB/LBU/LH/LHU/SB/SH 触发但实现错误**——Load 端 [dmem.sv](corex/hdl_sv/core/dmem.sv) `assign rdata = mem[mem_addr]` 恒返回整 word，无 funct3 选字节/半字、无符号扩展；Store 端 [decoder.sv](corex/hdl_sv/core/decoder.sv) wbe 固定 SB=0001/SH=0011、不看地址低位。汇编铁证：reverse.c 用 `lbu/sb/sh`（LBU 每次返回同一 word，低字节都是 'C' → 输出全 'C'）；binary_search.c 用 `lw` 从 `.LC0` 字面量池加载（池子在代码区/IMem，程序从 DMem 读全 0 → 数据全零 → 返回 -1）。stdio.h 是第三件事：环境里没有、`-nostdlib` 下也无法链接 printf。适配按根因分别处理（初始化列表→逐个赋值、字节→int+word、printf→写 DMem）。**经验**：诊断这类"程序跑不通"要先分清工具链环境问题 vs RTL 功能缺口 vs 内存布局差异，不要归因到单一原因。
+
+### 问题：如何补全 RTL 指令集并跑通 ljt 原始测试（含 stdio.h 环境）？
+- **问题**：用户要求从根上修改 RTL 补全完整指令集，完整跑通 ljt 测试——不再手动改源码，包括 stdio.h 环境。
+- **我的 Prompt**：
+  > 现在请修改我的RTL，补充为完整的指令集，并且可以完整的跑通ljt的测试，而不是手动修改原发，包括stdio.h的环境
+- **Agent 回答**：进计划模式，用户确认范围 **RV32I 补全 + 软件乘法**（不实现硬件 M 扩展）。四层改动：①**RTL 字节/半字访存**：[core.sv](corex/hdl_sv/core/core.sv) 的 `ex_mem_data_t` 移除固定 `mem_wbe`、新增 `funct3` 随流水传到 MEM；MEM 段新增组合逻辑——Load 按 funct3+地址低位选字节/半字并符号/零扩展（LB/LBU/LH/LHU/LW），Store 按 `addr[1:0]` 计算 `wbe` 与写数据字节偏移（SB/SH/SW）；[decoder.sv](corex/hdl_sv/core/decoder.sv) 移除 ID 段固定 wbe 生成。②**stdio.h 环境**：新增 [bsp/libc/](corex/my_c_test/bsp/libc/)（stdio.h + 极简 printf 支持 `%d %u %x %X %c %s %%`，输出写 DMem `0x2800` 控制台缓冲）；链接 `-nostdlib -lgcc` 从 rv32i multilib 的 libgcc 拉软件乘法 `__mulsi3`（matrix/factorial 的 `*` 直接可用）。③**字面量池修复**：[test_core_program.py](corex/my_c_test/testcases/test_core_program.py) 的 `load_hex_file` 解析 `@address` 段标记，把同一份平面镜像**同时灌入 IMem 与 DMem**（IMem 取指令、DMem 提供 .rodata/.data），初始化列表不再读全零；注册表新增 `console` 检查类型（读 `0x2800` 缓冲重建字符串比对）。④**恢复原始源码**：src/ljt_*.c 用 c_test/ljt 原样覆盖，`#include <stdio.h>`、char 数组、初始化列表、`*` 乘法全部原生可用。验证：`make run-all` **22 passed**（含 6 个 ljt 原始源码，输出 matrix `19 22 43 50`、reverse `XEROC`、sort `1 2 5 7`、binary_search `3 -1`、factorial `720 6`、crc32 `cbf43926` 全对）；核心集成测试 test_core_lzq/core_all/dmem 16 passed 无回归。发现**预先存在的单元测试缺陷**（与改动无关）：test_decoder 的 t_decode_LUI/AUIPC 驱动 `extend_sel=1`（S 型编码）却断言 U 型立即数、test_control_unit 的 t_ctrl_LUI/AUIPC 断言 extend_sel==1 而 RTL 输出 `3'b011`——都是测试对 extend_sel 编码的错误假设。**经验**：工具链环境事实（裸机无 newlib、rv32i multilib 的 libgcc 含 __mulsi3、IMem/DMem 地址空间独立）决定了 C 测试能否原生编译运行，补 RTL 功能缺口时顺带把测试脚本的双内存加载一并修掉才完整。
+

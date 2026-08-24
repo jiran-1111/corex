@@ -34,7 +34,8 @@ from cocotb_utils import CLK_PERIOD_NS, Runner, setup_runner
 
 NOP = 0x00000013  # addi x0, x0, 0
 
-DONE_ADDR = 0x2000  # 程序结束标志：写 1 表示运行完毕
+DONE_ADDR = 0x2000   # 程序结束标志：写 1 表示运行完毕
+CONSOLE_ADDR = 0x2800  # printf 输出缓冲（bsp/libc/console.c）
 
 
 def soft_mul_expected():
@@ -73,53 +74,84 @@ PROGRAMS = {
     "zsq_mem_ops":      (1000, {0x1020: 50}),                         # 5+10+15+20
     "zsq_quick_sort":   (5000, {0x1000: [11, 12, 22, 25, 34, 45, 64, 90]}),
     "zsq_sum_loop":     (1000, {0x1000: 55}),                         # 1..10 累加
-    "ljt_matrix":       (2000, {0x1000: [19, 22, 43, 50]}),           # 2×2 矩阵乘
-    "ljt_reverse":      (1000, {0x1000: [88, 69, 82, 79, 67]}),       # "COREX" 反转 ASCII
-    "ljt_sort":         (1000, {0x1000: [1, 2, 5, 7]}),               # 冒泡 {7,2,5,1}
-    "ljt_binary_search": (1000, {0x1000: 3, 0x1004: 0xFFFFFFFF}),     # 找 7→3，找 6→-1
-    "ljt_factorial":    (5000, {0x1000: 720, 0x1004: 6}),             # 6! 与调用次数
-    "ljt_crc32":        (6000, {0x1000: 0xCBF43926}),                 # CRC32("123456789")
+    # === ljt 原始源码（未改写，用 printf 输出，经 console 缓冲检查）===
+    "ljt_matrix":       (3000, {"console": "19 22 43 50"}),           # 2×2 矩阵乘
+    "ljt_reverse":      (1000, {"console": "XEROC"}),                 # "COREX" 反转
+    "ljt_sort":         (5000, {"console": "1 2 5 7"}),               # 冒泡 {7,2,5,1}
+    "ljt_binary_search": (1000, {"console": "3 -1"}),                 # 找 7→3，找 6→-1
+    "ljt_factorial":    (5000, {"console": "720 6"}),                 # 6! 与调用次数
+    "ljt_crc32":        (6000, {"console": "cbf43926"}),              # printf("%x",~crc)
     "dim_transform":    (1000, {0x1000: 78}),                         # (173&0x1f)+65
 }
 
 
 def load_hex_file(filepath):
-    """解析 objcopy -O verilog 生成的 hex 文件为 32-bit word 列表（小端序）。"""
-    raw_bytes = []
+    """解析 objcopy -O verilog 生成的 hex 文件为 {word_addr: word} 映射。
+
+    objcopy -O verilog 输出带 @address 标记，text/rodata/data 连续排布（同一份
+    平面镜像）。corex 的 IMem 与 DMem 地址空间独立，同一份镜像分别灌入：
+    IMem 取指令、DMem 提供字面量池/.data/.rodata（缺失字节按 0 补齐）。
+    """
+    addr = 0
+    bytes_at = {}
     with open(filepath, "r") as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith("//") or line.startswith("@"):
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("@"):
+                addr = int(line[1:], 16)
                 continue
             for part in line.split():
-                raw_bytes.append(int(part, 16))
+                bytes_at[addr] = int(part, 16)
+                addr += 1
 
-    words = []
-    for i in range(0, len(raw_bytes), 4):
-        if i + 3 < len(raw_bytes):
-            b0 = raw_bytes[i]
-            b1 = raw_bytes[i + 1]
-            b2 = raw_bytes[i + 2]
-            b3 = raw_bytes[i + 3]
-            words.append((b3 << 24) | (b2 << 16) | (b1 << 8) | b0)
+    words = {}
+    if bytes_at:
+        max_addr = max(bytes_at)
+        for wa in range(0, (max_addr // 4 + 1) * 4, 4):
+            word = 0
+            for i in range(4):
+                word |= bytes_at.get(wa + i, 0) << (8 * i)
+            words[wa // 4] = word
     return words
 
 
-def fill_mem(dut, words: list[int]):
-    """通过层次化路径填充 IFU 内部 IMEM，剩余空间用 NOP 填充。"""
+def fill_mem(dut, words: dict):
+    """按字地址填充 IFU 内部 IMEM（取指用），剩余空间用 NOP 填充。"""
     imem_size = len(dut.u_ifu.IMem.imem.mem)
     for i in range(imem_size):
         dut.u_ifu.IMem.imem.mem[i].value = NOP
 
-    for i, word in enumerate(words):
-        dut.u_ifu.IMem.imem.mem[i].value = word
+    for wa, word in words.items():
+        if wa < imem_size:
+            dut.u_ifu.IMem.imem.mem[wa].value = word
 
-    dut._log.info(f"Successfully loaded {len(words)} instructions into IMem.")
+    dut._log.info(f"Successfully loaded {len(words)} words into IMem.")
+
+
+def fill_dmem(dut, words: dict):
+    """把同一份镜像预填进 DMem（提供字面量池/.data/.rodata，均为零初始化）。"""
+    dmem_size = len(dut.u_dmem.dmem.mem)
+    for i in range(dmem_size):
+        dut.u_dmem.dmem.mem[i].value = 0
+
+    for wa, word in words.items():
+        if wa < dmem_size:
+            dut.u_dmem.dmem.mem[wa].value = word
+
+    dut._log.info(f"Preloaded {len(words)} words into DMem.")
 
 
 def read_dmem(dut, byte_addr: int) -> int:
     """按字节地址读取 DMem 对应字（Word）的无符号值。"""
     return int(dut.u_dmem.dmem.mem[byte_addr // 4].value)
+
+
+def read_dmem_byte(dut, byte_addr: int) -> int:
+    """按字节地址读取单个字节（小端，从所在 word 中取对应字节）。"""
+    word = read_dmem(dut, byte_addr)
+    return (word >> (8 * (byte_addr & 3))) & 0xFF
 
 
 async def clock_tick(dut):
@@ -160,8 +192,10 @@ async def t_core_program(dut):
     max_cycles, checks = PROGRAMS[program]
     hex_path = TEST_DIR / "build" / program / "test.hex"
 
+    # 同一份平面镜像双灌：IMem 取指令，DMem 提供字面量池/.data/.rodata
     words = load_hex_file(hex_path)
     fill_mem(dut, words)
+    fill_dmem(dut, words)
     await setup_dut(dut, start_pc=0)
 
     # 轮询 DONE_ADDR 直到程序写完 1
@@ -176,16 +210,24 @@ async def t_core_program(dut):
         f"测试超时！在 {max_cycles} 个周期内未检测到 0x{DONE_ADDR:X} == 1"
     )
 
-    # 按注册表逐项比对结果
-    for addr, expected in checks.items():
-        if isinstance(expected, list):
-            actual = [read_dmem(dut, addr + i * 4) for i in range(len(expected))]
-            dut._log.info(f"DMem[0x{addr:X}:0x{addr + len(expected) * 4:X}] = {actual} (预期 {expected})")
-            assert actual == expected, f"0x{addr:X} 处校验失败！预期 {expected}, 实际 {actual}"
-        else:
-            actual = read_dmem(dut, addr)
-            dut._log.info(f"DMem[0x{addr:X}] = {actual} (预期 {expected})")
-            assert actual == expected, f"0x{addr:X} 处校验失败！预期 {expected}, 实际 {actual}"
+    # 比对结果：console 类型（printf 输出缓冲）或 DMem 字
+    if "console" in checks:
+        expected = checks["console"]
+        actual = bytes(read_dmem_byte(dut, CONSOLE_ADDR + i) for i in range(len(expected)))
+        dut._log.info(f"Console[0x{CONSOLE_ADDR:X}] = {actual!r} (预期 {expected!r})")
+        assert actual.decode("ascii", "replace") == expected, (
+            f"Console 校验失败！预期 {expected!r}, 实际 {actual!r}"
+        )
+    else:
+        for addr, expected in checks.items():
+            if isinstance(expected, list):
+                actual = [read_dmem(dut, addr + i * 4) for i in range(len(expected))]
+                dut._log.info(f"DMem[0x{addr:X}:0x{addr + len(expected) * 4:X}] = {actual} (预期 {expected})")
+                assert actual == expected, f"0x{addr:X} 处校验失败！预期 {expected}, 实际 {actual}"
+            else:
+                actual = read_dmem(dut, addr)
+                dut._log.info(f"DMem[0x{addr:X}] = {actual} (预期 {expected})")
+                assert actual == expected, f"0x{addr:X} 处校验失败！预期 {expected}, 实际 {actual}"
 
     dut._log.info(f"{program} 测试完全通过！")
 

@@ -33,10 +33,8 @@ module Decoder #(
     output logic [DATA_WIDTH-1:0]  rs2_data,
 
     output logic [ADDR_WIDTH-1:0] branch_target, //跳转目标地址
-    output logic [ADDR_WIDTH-1:0] JAL_target,
+    output logic [ADDR_WIDTH-1:0] JAL_target
     //output logic [ADDR_WIDTH-1:0] JALR_target,
-    output logic [DATA_WIDTH/8-1:0] mem_wbe
-
 
 );
 
@@ -102,16 +100,9 @@ module Decoder #(
     assign rs1_data = (rs1_data_bypass == 0) ? rs1_data_decode: write_data;
     assign rs2_data = (rs2_data_bypass == 0) ? rs2_data_decode: write_data;                
     
-    always_comb begin
-        if(opcode == 7'b0100011) 
-            case (funct3)
-                    3'b000:  mem_wbe = 4'b0001; // SB (Store Byte) -> 默认写最低字节
-                    3'b001:  mem_wbe = 4'b0011; // SH (Store Half-word) -> 默认写低半字
-                    3'b010:  mem_wbe = 4'b1111; // SW (Store Word) -> 全字写入
-                    default: mem_wbe = 4'b0000;
-            endcase
-        else mem_wbe = 4'b0000;
-    end
+    // Store 字节使能（wbe）不再在 ID 段生成：改为在 MEM 阶段按访存地址
+    // addr[1:0] 计算字节偏移（见 core.sv 的 MEM 段组合逻辑），以正确支持
+    // SB/SH/SW 对未对齐地址的字节/半字写入。
     // Register File instantiation
     RegFile #(
         .REG_DATA_WIDTH(DATA_WIDTH),

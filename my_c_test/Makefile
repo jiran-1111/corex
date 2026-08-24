@@ -10,7 +10,14 @@ BSP_DIR   := bsp
 MY_SRC_DIR:= src
 BUILD_DIR := build/$(TEST)
 
-CFLAGS    := -march=rv32i -mabi=ilp32 -O0 -nostdlib -T $(BSP_DIR)/link.ld -I $(BSP_DIR)
+# 最小 libc（printf/console）：为裸机提供 stdio.h 环境
+LIB_SRCS  := $(BSP_DIR)/libc/printf.c $(BSP_DIR)/libc/console.c
+
+# -ffreestanding：裸机编译，不假设宿主 libc；
+# -nostdlib 放在链接命令行尾部（无默认 crt0/libc），再显式 -lgcc 提供软件乘法
+# __mulsi3 等（RV32I 无 M 扩展）。
+CFLAGS    := -march=rv32i -mabi=ilp32 -O0 -ffreestanding -T $(BSP_DIR)/link.ld \
+             -I $(BSP_DIR) -I $(BSP_DIR)/libc
 
 TARGET_ELF := $(BUILD_DIR)/test.elf
 TARGET_HEX := $(BUILD_DIR)/test.hex
@@ -22,10 +29,10 @@ ALL_TESTS := $(patsubst $(MY_SRC_DIR)/%.c,%,$(wildcard $(MY_SRC_DIR)/*.c))
 # 默认只编译指定的单个 TEST
 all: $(TARGET_HEX) $(TARGET_DUMP)
 
-# 依赖直接指向 my_src/$(TEST).c
-$(TARGET_ELF): $(BSP_DIR)/crt0.s $(MY_SRC_DIR)/$(TEST).c
+# 依赖直接指向 my_src/$(TEST).c + 最小 libc 源
+$(TARGET_ELF): $(BSP_DIR)/crt0.s $(MY_SRC_DIR)/$(TEST).c $(LIB_SRCS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -nostdlib -lgcc -o $@
 
 $(TARGET_HEX): $(TARGET_ELF)
 	$(OBJCOPY) -O verilog $< $@

@@ -87,7 +87,11 @@ make TEST=adder        # 编译单个程序
 make run TEST=adder    # 编译 + 运行单个程序的测试
 ```
 
-所有 C 程序共用一个通用 cocotb 脚本 `testcases/test_core_program.py`（内置 `PROGRAMS` 注册表），新增程序只需写 `.c` + 注册表加一行，无需新脚本。约定：程序把结果写入 `0x1000` 起始的 DMem，结束前写 `0x2000 = 1` 作完成标志。
+所有 C 程序共用一个通用 cocotb 脚本 `testcases/test_core_program.py`（内置 `PROGRAMS` 注册表），新增程序只需写 `.c` + 注册表加一行，无需新脚本。
+
+- **stdio 环境**：`bsp/libc/` 提供最小 `printf`（`#include <stdio.h>` 可用），输出写入 DMem `0x2800` 控制台缓冲。
+- **结果约定（二选一，可混用）**：写 `0x1000` 起始的 DMem 并结束前写 `0x2000 = 1`；或直接 `printf`（脚本检查 `0x2800` 控制台字符串）。
+- **指令集**：RV32I 完整访存（LB/LBU/LH/LHU/LW + SB/SH/SW）；乘法用 libgcc 软件例程（`-lgcc`）。
 
 可以通过的测试（22 个）：
 

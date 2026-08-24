@@ -75,7 +75,6 @@ module CoreTop #(
     logic [DATA_WIDTH-1:0]   id_rs2_data;
     logic [DATA_WIDTH-1:0]   id_branch_target;
     logic [DATA_WIDTH-1:0]   id_jal_target;
-    logic [DATA_WIDTH/8-1:0] id_mem_wbe;
 
     // ID/EX pipeline register structs
     typedef struct packed {
@@ -89,7 +88,6 @@ module CoreTop #(
         logic [1:0]              operand_a;
         logic                    operand_b;
         logic [1:0]              pc_sel;
-        logic [DATA_WIDTH/8-1:0] mem_wbe;
     } id_ex_ctrl_t;
 
     typedef struct packed {
@@ -123,10 +121,10 @@ module CoreTop #(
         logic                    mem_to_reg;
         logic                    mem_read;
         logic                    mem_write;
-        logic [DATA_WIDTH/8-1:0] mem_wbe;
+        logic [2:0]              funct3;   // 访存宽度（LB/LH/LW/LBU/LHU / SB/SH/SW）
         logic [4:0]              rd;
-        logic [DATA_WIDTH-1:0]   alu_result;
-        logic [DATA_WIDTH-1:0]   rs2_data;
+        logic [DATA_WIDTH-1:0]   alu_result;  // 含访存地址
+        logic [DATA_WIDTH-1:0]   rs2_data;    // 写数据（Store）
     } ex_mem_data_t;
 
     logic         mem_ctrl_out;
@@ -271,8 +269,7 @@ module CoreTop #(
         .rs1_data     (id_rs1_data),
         .rs2_data     (id_rs2_data),
         .branch_target(id_branch_target),
-        .JAL_target   (id_jal_target),
-        .mem_wbe      (id_mem_wbe)
+        .JAL_target   (id_jal_target)
     );
 
     // ID/EX Pipeline Register Input Assignment
@@ -286,7 +283,6 @@ module CoreTop #(
     assign id_ex_ctrl_in.operand_a  = id_operand_a;
     assign id_ex_ctrl_in.operand_b  = id_operand_b;
     assign id_ex_ctrl_in.pc_sel     = id_valid ? id_pc_sel : 2'b00;
-    assign id_ex_ctrl_in.mem_wbe    = id_mem_wbe;
 
     assign id_ex_data_in.pc            = id_pc;
     assign id_ex_data_in.rs1_data      = id_rs1_data;
@@ -371,7 +367,7 @@ module CoreTop #(
     assign ex_mem_data_in.mem_write  = id_ex_ctrl_out.valid ? id_ex_ctrl_out.mem_write  : 1'b0;
     assign ex_mem_data_in.mem_read   = id_ex_ctrl_out.valid ? id_ex_ctrl_out.mem_read   : 1'b0;
     assign ex_mem_data_in.mem_to_reg = id_ex_ctrl_out.valid ? id_ex_ctrl_out.mem_to_reg : 1'b0;
-    assign ex_mem_data_in.mem_wbe    = id_ex_ctrl_out.mem_wbe;
+    assign ex_mem_data_in.funct3     = id_ex_data_out.funct3;   // 访存宽度随流水传到 MEM
     assign ex_mem_data_in.rd         = id_ex_data_out.rd;
     assign ex_mem_data_in.alu_result = ex_alu_result;
     assign ex_mem_data_in.rs2_data   = ex_rs2_data_fwd;
@@ -394,6 +390,71 @@ module CoreTop #(
     // =========================================================================
     // Stage 4: Memory Access (MEM)
     // =========================================================================
+    // ---- MEM 阶段字节/半字访存处理（LB/LH/LBU/LHU/SB/SH）----
+    // Store：按访存地址 addr[1:0] 计算字节使能 wbe 与写数据 wdata 的字节偏移，
+    //        使 SB/SH 能写到未对齐地址的正确字节/半字（SW 全字）。
+    // Load：按 funct3 与 addr[1:0] 从读回的 word 中选字节/半字并符号/零扩展。
+    logic [DATA_WIDTH/8-1:0] mem_wbe;
+    logic [DATA_WIDTH-1:0]   mem_wdata;
+    logic [DATA_WIDTH-1:0]   mem_rdata_fmt;
+
+    always_comb begin
+        if (mem_data_out.mem_write) begin
+            case (mem_data_out.funct3)
+                3'b010: begin // SW
+                    mem_wbe   = 4'b1111;
+                    mem_wdata = mem_data_out.rs2_data;
+                end
+                3'b001: begin // SH：半字偏移由 addr[1] 决定（0 或 2）
+                    mem_wbe   = 4'b0011 << {mem_data_out.alu_result[1], 1'b0};
+                    mem_wdata = mem_data_out.rs2_data << (8 * {mem_data_out.alu_result[1], 1'b0});
+                end
+                3'b000: begin // SB：字节偏移由 addr[1:0] 决定
+                    mem_wbe   = 4'b0001 << mem_data_out.alu_result[1:0];
+                    mem_wdata = mem_data_out.rs2_data << (8 * mem_data_out.alu_result[1:0]);
+                end
+                default: begin
+                    mem_wbe   = 4'b0000;
+                    mem_wdata = mem_data_out.rs2_data;
+                end
+            endcase
+        end else begin
+            mem_wbe   = 4'b0000;
+            mem_wdata = mem_data_out.rs2_data;
+        end
+    end
+
+    always_comb begin
+        if (mem_data_out.mem_read) begin
+            case (mem_data_out.funct3)
+                3'b010: mem_rdata_fmt = mem_rdata;                            // LW
+                3'b001: case (mem_data_out.alu_result[1])                     // LH：符号扩展
+                            1'b0: mem_rdata_fmt = {{16{mem_rdata[15]}}, mem_rdata[15:0]};
+                            default: mem_rdata_fmt = {{16{mem_rdata[31]}}, mem_rdata[31:16]};
+                        endcase
+                3'b101: case (mem_data_out.alu_result[1])                     // LHU：零扩展
+                            1'b0: mem_rdata_fmt = {16'b0, mem_rdata[15:0]};
+                            default: mem_rdata_fmt = {16'b0, mem_rdata[31:16]};
+                        endcase
+                3'b000: case (mem_data_out.alu_result[1:0])                   // LB：符号扩展
+                            2'b00: mem_rdata_fmt = {{24{mem_rdata[7]}},  mem_rdata[7:0]};
+                            2'b01: mem_rdata_fmt = {{24{mem_rdata[15]}}, mem_rdata[15:8]};
+                            2'b10: mem_rdata_fmt = {{24{mem_rdata[23]}}, mem_rdata[23:16]};
+                            default: mem_rdata_fmt = {{24{mem_rdata[31]}}, mem_rdata[31:24]};
+                        endcase
+                3'b100: case (mem_data_out.alu_result[1:0])                   // LBU：零扩展
+                            2'b00: mem_rdata_fmt = {24'b0, mem_rdata[7:0]};
+                            2'b01: mem_rdata_fmt = {24'b0, mem_rdata[15:8]};
+                            2'b10: mem_rdata_fmt = {24'b0, mem_rdata[23:16]};
+                            default: mem_rdata_fmt = {24'b0, mem_rdata[31:24]};
+                        endcase
+                default: mem_rdata_fmt = mem_rdata;
+            endcase
+        end else begin
+            mem_rdata_fmt = mem_rdata;
+        end
+    end
+
     DMemTop #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH),
@@ -404,8 +465,8 @@ module CoreTop #(
         .read (mem_data_out.mem_read),
         .write(mem_data_out.mem_write),
         .addr (mem_data_out.alu_result),
-        .wdata(mem_data_out.rs2_data),
-        .wbe  (mem_data_out.mem_wbe),
+        .wdata(mem_wdata),
+        .wbe  (mem_wbe),
         .gnt  (dmem_gnt),
         .rack (dmem_rack),
         .wack (dmem_wack),
@@ -418,7 +479,7 @@ module CoreTop #(
     assign mem_wb_data_in.mem_to_reg = mem_ctrl_out ? mem_data_out.mem_to_reg : 1'b0;
     assign mem_wb_data_in.rd         = mem_data_out.rd;
     assign mem_wb_data_in.alu_result = mem_data_out.alu_result;
-    assign mem_wb_data_in.mem_rdata  = mem_rdata;
+    assign mem_wb_data_in.mem_rdata  = mem_rdata_fmt;
 
     PipelineReg #(
         .CTRL_WIDTH (1),
@@ -462,7 +523,7 @@ module CoreTop #(
     end
 
     always @(posedge clk) if (!rst) begin
-        $display("%8t | %5d |      2'b%b |   %h |   %h |   %h |  %h | %h |   %h   |      %h    |   %b   |   %b | stall=%b | id_flush=%b | ex_flush=%b | ex_valid=%b ex_mem=%b ex_wbe=%h | if_ack=%b",
+        $display("%8t | %5d |      2'b%b |   %h |   %h |   %h |  %h | %h |   %h   |      %h    |   %b   |   %b | stall=%b | id_flush=%b | ex_flush=%b | ex_valid=%b mem_rd=%b wbe=%h | if_ack=%b",
                  $time,
                  cycle_cnt,
                  id_ex_ctrl_out.pc_sel,
@@ -479,8 +540,8 @@ module CoreTop #(
                  id_flush,
                  ex_flush,
                  id_ex_ctrl_out.valid,
-                 id_ex_ctrl_out.mem_read,
-                 id_ex_ctrl_out.mem_wbe,
+                 mem_data_out.mem_read,
+                 mem_wbe,
                  if_valid
         );
 
