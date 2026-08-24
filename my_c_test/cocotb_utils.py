@@ -52,7 +52,7 @@ def setup_runner(
 
     runner = get_runner(simulator)
 
-    # 1. 首先把测试脚本（如 test_core_adder.py）里传进来的 extra_args 全部保留
+    # 1. 首先把测试脚本（如 test_core_program.py）里传进来的 extra_args 全部保留
     compile_args = list(extra_args) if extra_args else []
 
     # 2. 如果开启了 COVERAGE 环境变量，且测试脚本里没有显式指定 --coverage 相关的参数，再根据 COVERAGE_TYPE 补全

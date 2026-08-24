@@ -1,0 +1,117 @@
+
+build/ljt_crc32/test.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00001137          	lui	sp,0x1
+   4:	80010113          	addi	sp,sp,-2048 # 800 <main+0x7f0>
+   8:	008000ef          	jal	ra,10 <main>
+
+0000000c <_loop>:
+   c:	0000006f          	j	c <_loop>
+
+00000010 <main>:
+  10:	fb010113          	addi	sp,sp,-80
+  14:	04812623          	sw	s0,76(sp)
+  18:	05010413          	addi	s0,sp,80
+  1c:	03100793          	li	a5,49
+  20:	faf42c23          	sw	a5,-72(s0)
+  24:	03200793          	li	a5,50
+  28:	faf42e23          	sw	a5,-68(s0)
+  2c:	03300793          	li	a5,51
+  30:	fcf42023          	sw	a5,-64(s0)
+  34:	03400793          	li	a5,52
+  38:	fcf42223          	sw	a5,-60(s0)
+  3c:	03500793          	li	a5,53
+  40:	fcf42423          	sw	a5,-56(s0)
+  44:	03600793          	li	a5,54
+  48:	fcf42623          	sw	a5,-52(s0)
+  4c:	03700793          	li	a5,55
+  50:	fcf42823          	sw	a5,-48(s0)
+  54:	03800793          	li	a5,56
+  58:	fcf42a23          	sw	a5,-44(s0)
+  5c:	03900793          	li	a5,57
+  60:	fcf42c23          	sw	a5,-40(s0)
+  64:	fff00793          	li	a5,-1
+  68:	fef42623          	sw	a5,-20(s0)
+  6c:	fe042423          	sw	zero,-24(s0)
+  70:	0840006f          	j	f4 <main+0xe4>
+  74:	fe842783          	lw	a5,-24(s0)
+  78:	00279793          	slli	a5,a5,0x2
+  7c:	ff040713          	addi	a4,s0,-16
+  80:	00f707b3          	add	a5,a4,a5
+  84:	fc87a783          	lw	a5,-56(a5)
+  88:	00078713          	mv	a4,a5
+  8c:	fec42783          	lw	a5,-20(s0)
+  90:	00e7c7b3          	xor	a5,a5,a4
+  94:	fef42623          	sw	a5,-20(s0)
+  98:	fe042223          	sw	zero,-28(s0)
+  9c:	0400006f          	j	dc <main+0xcc>
+  a0:	fec42783          	lw	a5,-20(s0)
+  a4:	0017f793          	andi	a5,a5,1
+  a8:	40f007b3          	neg	a5,a5
+  ac:	fcf42e23          	sw	a5,-36(s0)
+  b0:	fec42783          	lw	a5,-20(s0)
+  b4:	0017d713          	srli	a4,a5,0x1
+  b8:	fdc42683          	lw	a3,-36(s0)
+  bc:	edb887b7          	lui	a5,0xedb88
+  c0:	32078793          	addi	a5,a5,800 # edb88320 <main+0xedb88310>
+  c4:	00f6f7b3          	and	a5,a3,a5
+  c8:	00f747b3          	xor	a5,a4,a5
+  cc:	fef42623          	sw	a5,-20(s0)
+  d0:	fe442783          	lw	a5,-28(s0)
+  d4:	00178793          	addi	a5,a5,1
+  d8:	fef42223          	sw	a5,-28(s0)
+  dc:	fe442703          	lw	a4,-28(s0)
+  e0:	00700793          	li	a5,7
+  e4:	fae7dee3          	bge	a5,a4,a0 <main+0x90>
+  e8:	fe842783          	lw	a5,-24(s0)
+  ec:	00178793          	addi	a5,a5,1
+  f0:	fef42423          	sw	a5,-24(s0)
+  f4:	fe842703          	lw	a4,-24(s0)
+  f8:	00800793          	li	a5,8
+  fc:	f6e7dce3          	bge	a5,a4,74 <main+0x64>
+ 100:	000017b7          	lui	a5,0x1
+ 104:	fef42023          	sw	a5,-32(s0)
+ 108:	fec42783          	lw	a5,-20(s0)
+ 10c:	fff7c713          	not	a4,a5
+ 110:	fe042783          	lw	a5,-32(s0)
+ 114:	00e7a023          	sw	a4,0(a5) # 1000 <main+0xff0>
+ 118:	000027b7          	lui	a5,0x2
+ 11c:	00100713          	li	a4,1
+ 120:	00e7a023          	sw	a4,0(a5) # 2000 <main+0x1ff0>
+ 124:	00000793          	li	a5,0
+ 128:	00078513          	mv	a0,a5
+ 12c:	04c12403          	lw	s0,76(sp)
+ 130:	05010113          	addi	sp,sp,80
+ 134:	00008067          	ret
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	1b41                	addi	s6,s6,-16
+   2:	0000                	unimp
+   4:	7200                	flw	fs0,32(a2)
+   6:	7369                	lui	t1,0xffffa
+   8:	01007663          	bgeu	zero,a6,14 <main+0x4>
+   c:	0011                	c.nop	4
+   e:	0000                	unimp
+  10:	1004                	addi	s1,sp,32
+  12:	7205                	lui	tp,0xfffe1
+  14:	3376                	fld	ft6,376(sp)
+  16:	6932                	flw	fs2,12(sp)
+  18:	7032                	flw	ft0,44(sp)
+  1a:	0030                	addi	a2,sp,8
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	fmsub.d	ft6,ft6,ft4,ft7,rmm
+   4:	2820                	fld	fs0,80(s0)
+   6:	2029                	jal	10 <main>
+   8:	3031                	jal	fffff814 <main+0xfffff804>
+   a:	322e                	fld	ft4,232(sp)
+   c:	302e                	fld	ft0,232(sp)
+	...

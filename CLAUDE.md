@@ -84,7 +84,7 @@ IF（取指） → ID（译码 + 寄存器读取） → EX（ALU + 分支/JALR �
 1. [my_c_test/src/](my_c_test/src/) 中的 C 源码 → 使用 `riscv64-unknown-elf-gcc` 交叉编译（`-march=rv32i -mabi=ilp32 -nostdlib`）。
 2. 链接 [bsp/crt0.s](my_c_test/bsp/crt0.s)（设置栈指针、调用 `main`、返回后死循环）和 [bsp/link.ld](my_c_test/bsp/link.ld)（程序起始地址 `0x00000000`）。
 3. `objcopy -O verilog` 生成 hex 文件。
-4. [my_c_test/testcases/](my_c_test/testcases/) 中的 Python 测试用例通过层次化路径（`dut.u_ifu.IMem.imem.mem`）将 hex 加载到 IMem，运行核心，并检查 DMem 中的结果。
+4. [my_c_test/testcases/test_core_program.py](my_c_test/testcases/test_core_program.py) 通用脚本通过层次化路径（`dut.u_ifu.IMem.imem.mem`）把 hex 加载到 IMem，运行核心，轮询 `0x2000` 完成标志后检查 DMem 结果。所有 C 程序共用一个脚本（内置 `PROGRAMS` 注册表），不再为每个程序单独写 cocotb 脚本。
 
 ### 测试层次
 
@@ -106,9 +106,25 @@ ifu.sv → core.sv
 
 ## 添加新的 C 测试
 
-1. 编写 `my_c_test/src/<name>.c`——程序必须将结果写入已知的 DMem 地址（例如 `*(volatile int*)0x100 = result`）。
-2. 参照已有模式编写 `my_c_test/testcases/test_core_<name>.py`（加载 hex、填充 IMem、运行、检查 DMem）。
-3. 运行 `make TEST=<name>` 然后 `make run TEST=<name>`。
+1. 编写 `my_c_test/src/<name>.c`——程序把结果写入 `0x1000` 起始的 DMem（例如 `*(volatile int*)0x1000 = result`），结束前写 `*(volatile int*)0x2000 = 1` 作完成标志。
+2. 在 `my_c_test/testcases/test_core_program.py` 的 `PROGRAMS` 注册表加一行：`"<name>": (<max_cycles>, {<字节地址>: <期望值>})`（期望值为 `list` 时从该地址起连续比对多个字）。**无需再写新的 cocotb 脚本**。
+3. 运行 `make TEST=<name>` 编译，然后 `make run TEST=<name>` 运行。
+
+> 现有 22 个程序：10 个原始程序（adder/sum/jar/crc32/factorial/fibonacci/sort/binary_search/
+> soft_mul_bit/str_toggle）+ 12 个从 [c_test/](../c_test/) 三人（zsq/ljt/dim）程序适配而来
+> （zsq_* 5 个、ljt_* 6 个、dim_transform），适配源码在 `my_c_test/src/`。
+
+### C 程序编码约束（corex 兼容性，重要）
+
+- **初始化列表 → 改用逐个赋值**：`int data[4] = {7,2,5,1}` 在 `-O0` 下会编译成从「字面量池」
+  （literal pool，位于代码区/IMem）用 `lw` 加载，而 corex 的 IMem/DMem 分离使程序通过 DMem
+  读池子 → 读到全零。改为 `data[0]=7; data[1]=2; ...`（编译成 `li` 立即数）即可。
+- **避免字节存取（LBU/SB）**：corex 的字节访存不可靠（ljt_reverse 的 char 数组曾全部输出
+  同一个字符 'C'）。用 `int` 数组存字节值 + word 访问；需提取字节时按现有
+  [crc32.c](my_c_test/src/crc32.c) 模式 `(word >> (byte_offset * 8)) & 0xFF`。
+- **无 M 扩展**：变量乘法需软件 `multiply()`（参照 [factorial.c](my_c_test/src/factorial.c)）；
+  常量 `/2` 会被编译成移位，无碍。
+- **`-nostdlib`**：无 `printf`/stdio，打印改为把结果写 `0x1000` 起始的 DMem。
 
 ## 注意事项
 

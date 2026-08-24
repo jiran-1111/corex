@@ -1,0 +1,132 @@
+
+build/dim_transform/test.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00001137          	lui	sp,0x1
+   4:	80010113          	addi	sp,sp,-2048 # 800 <main+0x778>
+   8:	080000ef          	jal	ra,88 <main>
+
+0000000c <_loop>:
+   c:	0000006f          	j	c <_loop>
+
+00000010 <transform>:
+  10:	fd010113          	addi	sp,sp,-48
+  14:	02812623          	sw	s0,44(sp)
+  18:	03010413          	addi	s0,sp,48
+  1c:	fca42e23          	sw	a0,-36(s0)
+  20:	fcb42c23          	sw	a1,-40(s0)
+  24:	fdc42783          	lw	a5,-36(s0)
+  28:	00179793          	slli	a5,a5,0x1
+  2c:	fdc42703          	lw	a4,-36(s0)
+  30:	00f707b3          	add	a5,a4,a5
+  34:	fef42623          	sw	a5,-20(s0)
+  38:	fd842783          	lw	a5,-40(s0)
+  3c:	01278793          	addi	a5,a5,18
+  40:	fec42703          	lw	a4,-20(s0)
+  44:	00f747b3          	xor	a5,a4,a5
+  48:	fef42623          	sw	a5,-20(s0)
+  4c:	fec42783          	lw	a5,-20(s0)
+  50:	0017f793          	andi	a5,a5,1
+  54:	00078a63          	beqz	a5,68 <transform+0x58>
+  58:	fec42783          	lw	a5,-20(s0)
+  5c:	00778793          	addi	a5,a5,7
+  60:	fef42623          	sw	a5,-20(s0)
+  64:	0100006f          	j	74 <transform+0x64>
+  68:	fec42783          	lw	a5,-20(s0)
+  6c:	ffd78793          	addi	a5,a5,-3
+  70:	fef42623          	sw	a5,-20(s0)
+  74:	fec42783          	lw	a5,-20(s0)
+  78:	00078513          	mv	a0,a5
+  7c:	02c12403          	lw	s0,44(sp)
+  80:	03010113          	addi	sp,sp,48
+  84:	00008067          	ret
+
+00000088 <main>:
+  88:	fc010113          	addi	sp,sp,-64
+  8c:	02112e23          	sw	ra,60(sp)
+  90:	02812c23          	sw	s0,56(sp)
+  94:	04010413          	addi	s0,sp,64
+  98:	00300793          	li	a5,3
+  9c:	fcf42223          	sw	a5,-60(s0)
+  a0:	00100793          	li	a5,1
+  a4:	fcf42423          	sw	a5,-56(s0)
+  a8:	00400793          	li	a5,4
+  ac:	fcf42623          	sw	a5,-52(s0)
+  b0:	00100793          	li	a5,1
+  b4:	fcf42823          	sw	a5,-48(s0)
+  b8:	00500793          	li	a5,5
+  bc:	fcf42a23          	sw	a5,-44(s0)
+  c0:	00900793          	li	a5,9
+  c4:	fcf42c23          	sw	a5,-40(s0)
+  c8:	00200793          	li	a5,2
+  cc:	fcf42e23          	sw	a5,-36(s0)
+  d0:	00600793          	li	a5,6
+  d4:	fef42023          	sw	a5,-32(s0)
+  d8:	fe042623          	sw	zero,-20(s0)
+  dc:	fe042423          	sw	zero,-24(s0)
+  e0:	0400006f          	j	120 <main+0x98>
+  e4:	fe842783          	lw	a5,-24(s0)
+  e8:	00279793          	slli	a5,a5,0x2
+  ec:	ff040713          	addi	a4,s0,-16
+  f0:	00f707b3          	add	a5,a4,a5
+  f4:	fd47a783          	lw	a5,-44(a5)
+  f8:	fe842583          	lw	a1,-24(s0)
+  fc:	00078513          	mv	a0,a5
+ 100:	f11ff0ef          	jal	ra,10 <transform>
+ 104:	00050713          	mv	a4,a0
+ 108:	fec42783          	lw	a5,-20(s0)
+ 10c:	00e787b3          	add	a5,a5,a4
+ 110:	fef42623          	sw	a5,-20(s0)
+ 114:	fe842783          	lw	a5,-24(s0)
+ 118:	00178793          	addi	a5,a5,1
+ 11c:	fef42423          	sw	a5,-24(s0)
+ 120:	fe842703          	lw	a4,-24(s0)
+ 124:	00700793          	li	a5,7
+ 128:	fae7fee3          	bgeu	a5,a4,e4 <main+0x5c>
+ 12c:	000017b7          	lui	a5,0x1
+ 130:	fef42223          	sw	a5,-28(s0)
+ 134:	fec42783          	lw	a5,-20(s0)
+ 138:	01f7f793          	andi	a5,a5,31
+ 13c:	04178713          	addi	a4,a5,65 # 1041 <main+0xfb9>
+ 140:	fe442783          	lw	a5,-28(s0)
+ 144:	00e7a023          	sw	a4,0(a5)
+ 148:	000027b7          	lui	a5,0x2
+ 14c:	00100713          	li	a4,1
+ 150:	00e7a023          	sw	a4,0(a5) # 2000 <main+0x1f78>
+ 154:	00000793          	li	a5,0
+ 158:	00078513          	mv	a0,a5
+ 15c:	03c12083          	lw	ra,60(sp)
+ 160:	03812403          	lw	s0,56(sp)
+ 164:	04010113          	addi	sp,sp,64
+ 168:	00008067          	ret
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	1b41                	addi	s6,s6,-16
+   2:	0000                	unimp
+   4:	7200                	flw	fs0,32(a2)
+   6:	7369                	lui	t1,0xffffa
+   8:	01007663          	bgeu	zero,a6,14 <transform+0x4>
+   c:	0011                	c.nop	4
+   e:	0000                	unimp
+  10:	1004                	addi	s1,sp,32
+  12:	7205                	lui	tp,0xfffe1
+  14:	3376                	fld	ft6,376(sp)
+  16:	6932                	flw	fs2,12(sp)
+  18:	7032                	flw	ft0,44(sp)
+  1a:	0030                	addi	a2,sp,8
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	fmsub.d	ft6,ft6,ft4,ft7,rmm
+   4:	2820                	fld	fs0,80(s0)
+   6:	2029                	jal	10 <transform>
+   8:	3031                	jal	fffff814 <main+0xfffff78c>
+   a:	322e                	fld	ft4,232(sp)
+   c:	302e                	fld	ft0,232(sp)
+	...

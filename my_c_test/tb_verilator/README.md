@@ -50,11 +50,12 @@ make clean
 
 ## binary_search 效率实测（2026-08，Verilator 5.040，本机）
 
-程序完成约 282 个时钟周期/次。cocotb 侧支持 `RUNS=N` 连续运行以摊销初始化
-（`RUNS=50 make run TEST=binary_search`）。
+程序完成约 282 个时钟周期/次。原 cocotb 侧曾支持 `RUNS=N` 连续运行以摊销初始化做吞吐量
+profiling；该实验代码已随 2026-08 的通用脚本合并（见下文）而简化，当前通用脚本对每个
+程序做单次结果验证。
 
 > cocotb 侧已做过开销优化：热路径缓存句柄 + 复用 `RisingEdge` 触发、覆盖率改为
-> `COVERAGE=1` 才插桩、conftest 懒加载 coverage。详见 [test_core_binary_search.py](../testcases/test_core_binary_search.py)。
+> `COVERAGE=1` 才插桩、conftest 懒加载 coverage。见 [test_core_program.py](../testcases/test_core_program.py)。
 
 ### cocotb 连续运行 vs 纯 Verilator（50 次对比）
 

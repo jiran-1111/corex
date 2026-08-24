@@ -18,19 +18,15 @@
 │   ├── crc32.c           //crc32
 │   ├── factorial.c       //阶乘
 │   ├── fibonacci.c       //斐波那契数列
-│   ├── jar.c             //jar排序
-│   ├── sort.c            //排序
+│   ├── jar.c             //jar函数调用
+│   ├── soft_mul_bit.c    //软乘法与位翻转
+│   ├── sort.c            //冒泡排序
+│   ├── str_toggle.c      //大小写反转
 │   └── sum.c             //求和
 └── sim_build
 └── testcases            //cocotb测试用例文件夹
-    ├── test_core_adder.py
-    ├── test_core_binary_search.py
-    ├── test_core_crc32.py
-    ├── test_core_factorial.py
-    ├── test_core_fibonacci.py
-    ├── test_core_jar.py
-    ├── test_core_sort.py
-    └─── test_core_sum.py
+    ├── test_core_program.py   //通用测试脚本（内置 PROGRAMS 注册表，覆盖所有 C 程序）
+    └── conftest.py            //COVERAGE=1 时启用 Python 覆盖率
 ```
 
 ## 二、说明
@@ -69,13 +65,15 @@ sudo apt install gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf
 ```
 3、执行make指令 make TEST=adder
 
-得到add_test.dump,add_test.elf,add_test.hex  4个新生成的文件
+得到build/adder/ 下的 test.dump, test.elf, test.hex 编译产物
 
-4、编写test_core_adder.py  用于加载hex文件并进行验证
+4、在 testcases/test_core_program.py 的 PROGRAMS 注册表中添加该程序的检查项
+（超时周期 + 结果地址与期望值），无需另写 cocotb 脚本
 
-5、运行 python -m pytest testcases/test_core_adder.py
+5、运行 make run TEST=adder 运行单个测试
+（等价于 python -m pytest testcases/test_core_program.py -k adder）
 
-运行testcases目录下的所有测试python -m pytest testcases/
+运行所有测试：make run-all
 
 
 6、运行所有测试
@@ -99,8 +97,8 @@ make run TEST=adder
 
 ## 五、添加测试
 
-- 1、编写c语言源文件在my_src目录下 如：name.c
-- 2、编写测试python文件在testcases目录下 如:test_core_name.py
-- 3、运行make run-all 或者 make TEST=name 进行验证
+- 1、编写c语言源文件 src/name.c——结果写入 0x1000 起始的 DMem，结束前写 0x2000=1
+- 2、在 testcases/test_core_program.py 的 PROGRAMS 注册表加一行（超时周期 + 结果地址与期望值）
+- 3、运行 make run TEST=name 进行验证
 
 

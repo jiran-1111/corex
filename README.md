@@ -81,19 +81,17 @@ SIM=verilator python3 -m pytest -v -s sim/unit/core/test_decoder.py
 ### 2、c语言测试
 ```bash
 cd ~/pku_workspace/corex/my_c_test
-make run-all 
+make run-all           # 编译并运行全部 C 程序测试
 make clean
-make TEST=adder
-make run TEST=adder
+make TEST=adder        # 编译单个程序
+make run TEST=adder    # 编译 + 运行单个程序的测试
 ```
 
-可以通过的测试
+所有 C 程序共用一个通用 cocotb 脚本 `testcases/test_core_program.py`（内置 `PROGRAMS` 注册表），新增程序只需写 `.c` + 注册表加一行，无需新脚本。约定：程序把结果写入 `0x1000` 起始的 DMem，结束前写 `0x2000 = 1` 作完成标志。
 
-- adder
-- binary_search
-- cec32
-- factorial
-- fibonacci
-- jar
-- sort
-- sum
+可以通过的测试（22 个）：
+
+- adder、sum、jar、crc32、factorial、fibonacci、sort、binary_search、soft_mul_bit、str_toggle
+- zsq_fibonacci、zsq_bubble_sort、zsq_mem_ops、zsq_quick_sort、zsq_sum_loop（来自 c_test/zsq）
+- ljt_matrix、ljt_reverse、ljt_sort、ljt_binary_search、ljt_factorial、ljt_crc32（来自 c_test/ljt）
+- dim_transform（来自 c_test/dim）

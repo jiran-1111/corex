@@ -34,8 +34,9 @@ $(TARGET_DUMP): $(TARGET_ELF)
 	$(OBJDUMP) -D $< > $@
 
 # 1. 运行单个指定的测试 (例如 make run TEST=sort 或直接 make run 运行默认的 adder)
+#    通用脚本 test_core_program.py 用 -k <TEST> 选中对应的参数化用例
 run: all
-	python -m pytest testcases/test_core_$(TEST).py -s -v --log-cli-level=INFO
+	python -m pytest testcases/test_core_program.py -k $(TEST) -s -v --log-cli-level=INFO
 
 # 2. 编译并运行 my_src 下的所有 .c 测试 (make run-all)
 build-all:
@@ -45,7 +46,7 @@ build-all:
 	done
 
 run-all: build-all
-	python -m pytest testcases/
+	python -m pytest testcases/test_core_program.py -s -v --log-cli-level=INFO
 
 clean:
 	rm -rf build/
@@ -58,15 +59,15 @@ clean:
 
 # 1. 带覆盖率运行单个测试
 run-cov: all
-	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py -s -v --log-cli-level=INFO
+	COVERAGE=1 python -m pytest testcases/test_core_program.py -k $(TEST) -s -v --log-cli-level=INFO
 #run-cov: all
-#	COVERAGE=1 python -m pytest testcases/test_core_$(TEST).py \
+#	COVERAGE=1 python -m pytest testcases/test_core_program.py -k $(TEST) \
 #		--cov=testcases \
 #		--cov-report=html:build/coverage/python_html \
 #		-s -v --log-cli-level=INFO
 # 2. 带覆盖率运行所有测试并自动生成 HTML 报告
 run-all-cov: build-all
-	COVERAGE=1 python -m pytest testcases/
+	COVERAGE=1 python -m pytest testcases/test_core_program.py -s -v --log-cli-level=INFO
 	@$(MAKE) cov-report
 
 # 3. 收集并生成 Verilator 代码覆盖率 HTML 报告
